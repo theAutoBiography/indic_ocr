@@ -7,6 +7,11 @@ RUN yum update -y && \
     tesseract-langpack-eng \
     poppler-utils \
     wget \
+    gcc \
+    gcc-c++ \
+    cmake \
+    libffi-devel \
+    openssl-devel \
     && yum clean all
 
 # Create tessdata directory if it doesn't exist and install Indic language data
@@ -24,8 +29,9 @@ ENV TESSDATA_PREFIX=/usr/share/tesseract/tessdata
 # Copy requirements file
 COPY requirements.txt ${LAMBDA_TASK_ROOT}/
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r ${LAMBDA_TASK_ROOT}/requirements.txt
+# Upgrade pip and install Python dependencies
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r ${LAMBDA_TASK_ROOT}/requirements.txt
 
 # Copy application code
 COPY src/ ${LAMBDA_TASK_ROOT}/src/

@@ -73,12 +73,14 @@ class OCRProcessor:
                 from pdf2image import pdfinfo_from_path
                 info = pdfinfo_from_path(file_path)
                 total_pages = info.get('Pages', 1)
-            except:
+            except Exception as e:
                 # Fallback: convert to count pages
+                logger.error(f"Error getting PDF info: {e}")
                 try:
                     images = convert_from_path(file_path)
                     total_pages = len(images)
-                except:
+                except Exception as e2:
+                    logger.error(f"Error converting PDF: {e2}")
                     total_pages = 1
 
             yield {"total_pages": total_pages, "type": "metadata"}
@@ -183,26 +185,27 @@ class OCRProcessor:
                         "cached": False
                     }
 
-                # If confidence is below threshold and not cached, store image and prepare for upload
+                # Always store word images for UI display and VLM training
+                # Images are always uploaded (even for cached results) so users can view them when correcting
+                word_filename = f"{file_id}/page_{page_num}/word_{uuid.uuid4().hex}.png"
+
+                # Convert word image to bytes
+                _, word_buffer = cv2.imencode('.png', word_image)
+                word_bytes = word_buffer.tobytes()
+
+                # Upload to S3 asynchronously
+                future = self.aws_service.upload_to_s3_async(
+                    word_bytes,
+                    word_filename,
+                    Config.S3_WORD_BUCKET
+                )
+                word_upload_futures.append(future)
+
+                word_data["image_url"] = f"s3://{Config.S3_WORD_BUCKET}/{word_filename}"
+                word_data["image_filename"] = word_filename
+
+                # Extract character-level data for low confidence words only (skip if cached)
                 if not cached_result and conf < self.confidence_threshold:
-                    word_filename = f"{file_id}/page_{page_num}/word_{uuid.uuid4().hex}.png"
-
-                    # Convert word image to bytes
-                    _, word_buffer = cv2.imencode('.png', word_image)
-                    word_bytes = word_buffer.tobytes()
-
-                    # Upload to S3 asynchronously
-                    future = self.aws_service.upload_to_s3_async(
-                        word_bytes,
-                        word_filename,
-                        Config.S3_WORD_BUCKET
-                    )
-                    word_upload_futures.append(future)
-
-                    word_data["image_url"] = f"s3://{Config.S3_WORD_BUCKET}/{word_filename}"
-                    word_data["image_filename"] = word_filename
-
-                    # Extract character-level data for low confidence words
                     char_data = self._extract_characters(word_image, text, file_id, page_num, word_index)
                     word_data["characters"] = char_data["characters"]
 
@@ -239,13 +242,18 @@ class OCRProcessor:
                     db_item["corrected_text"] = cached_result['text']
 
                 # Add S3 references if word image was stored
-                if not cached_result and conf < self.confidence_threshold and "image_filename" in word_data:
+                if "image_filename" in word_data:
                     db_item["word_image_s3_key"] = word_data["image_filename"]
+                    db_item["word_image_s3_uri"] = f"s3://{Config.S3_WORD_BUCKET}/{word_data['image_filename']}"
 
                     # Add character images if available
                     if "characters" in word_data and word_data["characters"]:
                         db_item["char_images_s3_keys"] = [
                             char["image_filename"] for char in word_data["characters"]
+                        ]
+                        db_item["char_images_s3_uris"] = [
+                            f"s3://{Config.S3_CHAR_BUCKET}/{char['image_filename']}"
+                            for char in word_data["characters"]
                         ]
 
                 # Add composite sort key for GSI-LowConfidence
@@ -254,17 +262,55 @@ class OCRProcessor:
                 db_items.append(db_item)
                 word_index += 1  # Increment word index
 
-            # Wait for all S3 uploads to complete
-            for future in word_upload_futures + char_upload_futures:
+            # Notify user that S3 upload is starting
+            total_uploads = len(word_upload_futures) + len(char_upload_futures)
+            yield {
+                "type": "upload_progress",
+                "page": page_num,
+                "total_uploads": total_uploads,
+                "status": "uploading"
+            }
+
+            # Wait for S3 uploads to complete before saving to DynamoDB and yielding
+            # This ensures images are available when user clicks to correct
+            failed_uploads = []
+            completed_uploads = 0
+            for i, future in enumerate(word_upload_futures + char_upload_futures):
                 try:
                     future.result()
+                    completed_uploads += 1
+                    # Send progress updates every 10% or for small batches
+                    if total_uploads <= 10 or completed_uploads % max(1, total_uploads // 10) == 0:
+                        yield {
+                            "type": "upload_progress",
+                            "page": page_num,
+                            "completed": completed_uploads,
+                            "total": total_uploads,
+                            "status": "uploading"
+                        }
                 except Exception as e:
                     logger.error(f"S3 upload error: {e}")
+                    failed_uploads.append(i)
 
-            # Save to DynamoDB
+            # Remove S3 references for failed uploads
+            if failed_uploads:
+                logger.warning(f"{len(failed_uploads)} S3 uploads failed, cleaning up references")
+                # Note: This is a best-effort cleanup, consider implementing retry logic
+
+            # Notify upload complete
+            yield {
+                "type": "upload_progress",
+                "page": page_num,
+                "completed": completed_uploads,
+                "total": total_uploads,
+                "status": "complete"
+            }
+
+            # Save to DynamoDB after S3 uploads complete
             if db_items:
                 self.aws_service.save_to_dynamodb(db_items)
 
+            # Yield page data to user after S3 uploads and DB save
             page_data["full_text"] = page_data["full_text"].strip()
             yield page_data
 

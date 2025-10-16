@@ -743,6 +743,14 @@
                             role="progressbar" style="width: 0%"></div>
                     </div>
                     <p class="mt-3" id="progressText" style="color: #718096;">Uploading file...</p>
+                    <div class="mt-2" style="display: flex; justify-content: space-between; align-items: center;">
+                        <span id="elapsedTime" style="color: #718096; font-size: 0.9rem;">
+                            <i class="fas fa-clock"></i> Time elapsed: 0s
+                        </span>
+                        <span id="estimatedTime" style="color: #718096; font-size: 0.9rem;">
+                            Est. remaining: --
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -781,6 +789,8 @@
             const resultsContent = document.getElementById('resultsContent');
             const progressBar = document.getElementById('progressBar');
             const progressText = document.getElementById('progressText');
+            const elapsedTime = document.getElementById('elapsedTime');
+            const estimatedTime = document.getElementById('estimatedTime');
 
             // Terms and Conditions Modal
             const termsModal = document.getElementById('termsModal');
@@ -792,6 +802,9 @@
             let termsAccepted = false;
             let currentFileId = null;
             let currentWordData = null;
+            let processingStartTime = null;
+            let timerInterval = null;
+            let pageTimings = [];
 
             // Check if user has already accepted terms
             if (localStorage.getItem('termsAccepted') === 'true') {
@@ -862,6 +875,48 @@
                 fileInfo.classList.add('hidden');
             });
 
+            // Timer functions
+            function formatTime(seconds) {
+                if (seconds < 60) {
+                    return `${seconds}s`;
+                }
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins}m ${secs}s`;
+            }
+
+            function startTimer() {
+                processingStartTime = Date.now();
+                pageTimings = [];
+
+                timerInterval = setInterval(() => {
+                    const elapsed = Math.floor((Date.now() - processingStartTime) / 1000);
+                    elapsedTime.innerHTML = `<i class="fas fa-clock"></i> Time elapsed: ${formatTime(elapsed)}`;
+                }, 1000);
+            }
+
+            function updateEstimatedTime(currentPage, totalPages) {
+                if (currentPage === 0) return;
+
+                const elapsed = (Date.now() - processingStartTime) / 1000;
+                const avgTimePerPage = elapsed / currentPage;
+                const remainingPages = totalPages - currentPage;
+                const estimatedRemaining = Math.ceil(avgTimePerPage * remainingPages);
+
+                if (estimatedRemaining > 0) {
+                    estimatedTime.textContent = `Est. remaining: ${formatTime(estimatedRemaining)}`;
+                } else {
+                    estimatedTime.textContent = 'Almost done...';
+                }
+            }
+
+            function stopTimer() {
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
+            }
+
             // Upload and process
             uploadBtn.addEventListener('click', async () => {
                 if (!selectedFile) return;
@@ -882,6 +937,11 @@
                 progressSection.classList.remove('hidden');
                 progressBar.style.width = '0%';
                 progressText.textContent = 'Uploading file...';
+                elapsedTime.innerHTML = '<i class="fas fa-clock"></i> Time elapsed: 0s';
+                estimatedTime.textContent = 'Est. remaining: --';
+
+                // Start timer
+                startTimer();
 
                 try {
                     // Upload file
@@ -927,13 +987,31 @@
                             return;
                         }
 
+                        // Handle S3 upload progress
+                        if (data.type === 'upload_progress') {
+                            const uploadPage = data.page;
+                            if (data.status === 'uploading' && data.completed !== undefined) {
+                                const uploadPercent = Math.round((data.completed / data.total) * 100);
+                                progressText.innerHTML = `
+                                    Page ${uploadPage}: Uploading word images to S3...
+                                    <span style="color: var(--primary-color); font-weight: 600;">${data.completed}/${data.total}</span>
+                                    (${uploadPercent}%)
+                                `;
+                            } else if (data.status === 'complete') {
+                                progressText.textContent = `Page ${uploadPage}: Upload complete, saving to database...`;
+                            }
+                            return;
+                        }
+
                         if (data.complete) {
                             eventSource.close();
+                            stopTimer();
                             progressBar.style.width = '100%';
-                            progressText.textContent = 'Processing complete!';
+                            const totalTime = Math.floor((Date.now() - processingStartTime) / 1000);
+                            progressText.textContent = `Processing complete! Total time: ${formatTime(totalTime)}`;
                             setTimeout(() => {
                                 progressSection.classList.add('hidden');
-                            }, 1000);
+                            }, 2000);
                             return;
                         }
 
@@ -948,16 +1026,21 @@
 
                         progressBar.style.width = `${totalProgress}%`;
                         progressText.textContent = `Processing page ${pageCount} of ${totalPages}...`;
+
+                        // Update estimated time
+                        updateEstimatedTime(pageCount, totalPages);
                     };
 
                     eventSource.onerror = (error) => {
                         console.error('EventSource error:', error);
+                        stopTimer();
                         progressText.textContent = 'Error processing file';
                         eventSource.close();
                     };
 
                 } catch (error) {
                     console.error('Error:', error);
+                    stopTimer();
                     progressText.textContent = `Error: ${error.message}`;
                 }
             });
