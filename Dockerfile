@@ -1,25 +1,30 @@
 FROM public.ecr.aws/lambda/python:3.11
 
-# Install system dependencies (Amazon Linux 2 uses yum)
-RUN yum update -y && \
-    yum install -y \
+# Install basic dependencies first
+RUN yum install -y \
     wget \
     tar \
     gzip \
     gcc \
     gcc-c++ \
     make \
-    cmake \
+    && yum clean all
+
+# Install additional development libraries
+RUN yum install -y \
+    cmake3 \
     libffi-devel \
     openssl-devel \
-    libjpeg-devel \
+    libjpeg-turbo-devel \
     libpng-devel \
-    poppler-utils \
     && yum clean all
+
+# Install poppler-utils for PDF support
+RUN yum install -y poppler-utils && yum clean all
 
 # Install Tesseract from EPEL (Amazon Linux 2)
 RUN amazon-linux-extras install epel -y && \
-    yum install -y tesseract tesseract-langpack-eng && \
+    yum install -y tesseract && \
     yum clean all
 
 # Create tessdata directory if it doesn't exist and install Indic language data
