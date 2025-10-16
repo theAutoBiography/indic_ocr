@@ -1,15 +1,19 @@
 FROM public.ecr.aws/lambda/python:3.11
 
 # Install system dependencies for Tesseract and OpenCV
-RUN yum update -y && \
-    yum install -y \
+# AL2023 uses dnf, but yum is aliased to it
+RUN dnf update -y && \
+    dnf install -y \
     tesseract \
     tesseract-langpack-eng \
     poppler-utils \
     wget \
     gcc \
     gcc-c++ \
-    && yum clean all
+    && dnf clean all
+
+# Verify tesseract installation
+RUN which tesseract && tesseract --version || echo "Warning: tesseract not found after installation"
 
 # Create tessdata directory if it doesn't exist and install Indic language data
 RUN mkdir -p /usr/share/tesseract/tessdata && \

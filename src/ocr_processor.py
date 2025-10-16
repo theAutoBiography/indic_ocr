@@ -16,9 +16,19 @@ import logging
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
-# Set Tesseract path for Lambda environment
-if os.environ.get('AWS_LAMBDA_FUNCTION_NAME'):
-    pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
+# Set Tesseract path - check common locations
+# Lambda containers may not have AWS_LAMBDA_FUNCTION_NAME set reliably
+tesseract_paths = ['/usr/bin/tesseract', '/usr/local/bin/tesseract']
+for path in tesseract_paths:
+    if os.path.exists(path):
+        pytesseract.pytesseract.tesseract_cmd = path
+        logger.error(f"Tesseract found at: {path}")
+        break
+else:
+    # If not found, still set to standard location and let pytesseract handle the error
+    if os.environ.get('LAMBDA_TASK_ROOT') or os.environ.get('AWS_EXECUTION_ENV'):
+        pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
+        logger.error("Tesseract binary not found, setting to /usr/bin/tesseract")
 
 
 class OCRProcessor:
