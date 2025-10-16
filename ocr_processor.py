@@ -1,0 +1,213 @@
+import pytesseract
+from PIL import Image
+import cv2
+import numpy as np
+from pdf2image import convert_from_path
+import io
+import uuid
+import os
+from datetime import datetime
+from config import Config
+from aws_service import AWSService
+import logging
+
+logging.basicConfig(level=logging.ERROR)
+logger = logging.getLogger(__name__)
+
+
+class OCRProcessor:
+    def __init__(self):
+        self.aws_service = AWSService()
+        self.confidence_threshold = Config.CONFIDENCE_THRESHOLD
+        self.tesseract_lang = Config.TESSERACT_LANG
+
+    def process_file(self, file_path, file_id):
+        """Process a file (image or PDF) and yield results page by page"""
+        file_extension = os.path.splitext(file_path)[1].lower()
+
+        if file_extension == '.pdf':
+            yield from self._process_pdf(file_path, file_id)
+        else:
+            yield from self._process_image(file_path, file_id, page_num=1)
+
+    def _process_pdf(self, pdf_path, file_id):
+        """Process PDF page by page"""
+        try:
+            images = convert_from_path(pdf_path)
+            for page_num, image in enumerate(images, start=0):
+                yield from self._process_image_object(image, file_id, page_num)
+        except Exception as e:
+            logger.error(f"Error processing PDF: {e}")
+            yield {"error": str(e), "page": page_num}
+
+    def _process_image(self, image_path, file_id, page_num=1):
+        """Process a single image file"""
+        try:
+            image = Image.open(image_path)
+            yield from self._process_image_object(image, file_id, page_num)
+        except Exception as e:
+            logger.error(f"Error processing image: {e}")
+            yield {"error": str(e), "page": page_num}
+
+    def _process_image_object(self, image, file_id, page_num):
+        """Process PIL Image object and extract text with confidence scores"""
+        try:
+            # Convert to OpenCV format
+            image_cv = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+
+            # Get detailed OCR data with configured language (default: Sanskrit)
+            ocr_data = pytesseract.image_to_data(image, lang=self.tesseract_lang, output_type=pytesseract.Output.DICT)
+
+            page_data = {
+                "file_id": file_id,
+                "page": page_num,
+                "words": [],
+                "full_text": "",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+
+            db_items = []
+            word_upload_futures = []
+            char_upload_futures = []
+
+            # Process word by word
+            for i in range(len(ocr_data['text'])):
+                text = ocr_data['text'][i].strip()
+                if not text:
+                    continue
+
+                conf = float(ocr_data['conf'][i])
+                x, y, w, h = ocr_data['left'][i], ocr_data['top'][i], ocr_data['width'][i], ocr_data['height'][i]
+
+                # Extract word image
+                word_image = image_cv[y:y+h, x:x+w]
+
+                word_data = {
+                    "text": text,
+                    "confidence": conf,
+                    "bbox": {"x": x, "y": y, "width": w, "height": h}
+                }
+
+                # If confidence is below threshold, store image and prepare for upload
+                if conf < self.confidence_threshold:
+                    word_filename = f"{file_id}/page_{page_num}/word_{uuid.uuid4().hex}.png"
+
+                    # Convert word image to bytes
+                    _, word_buffer = cv2.imencode('.png', word_image)
+                    word_bytes = word_buffer.tobytes()
+
+                    # Upload to S3 asynchronously
+                    future = self.aws_service.upload_to_s3_async(
+                        word_bytes,
+                        word_filename,
+                        Config.S3_WORD_BUCKET
+                    )
+                    word_upload_futures.append(future)
+
+                    word_data["image_url"] = f"s3://{Config.S3_WORD_BUCKET}/{word_filename}"
+                    word_data["image_filename"] = word_filename
+
+                    # Extract character-level data for low confidence words
+                    char_data = self._extract_characters(word_image, text, file_id, page_num, i)
+                    word_data["characters"] = char_data["characters"]
+
+                    # Add character upload futures
+                    char_upload_futures.extend(char_data.get("upload_futures", []))
+
+                page_data["words"].append(word_data)
+                page_data["full_text"] += text + " "
+
+                # Prepare DynamoDB item
+                db_item = {
+                    "id": str(uuid.uuid4()),
+                    "file_id": file_id,
+                    "page": page_num,
+                    "word_index": i,
+                    "text": text,
+                    "confidence": str(conf),
+                    "bbox": str(word_data["bbox"]),
+                    "timestamp": page_data["timestamp"]
+                }
+
+                if conf < self.confidence_threshold and "image_filename" in word_data:
+                    db_item["word_image_filename"] = word_data["image_filename"]
+
+                db_items.append(db_item)
+
+            # Wait for all S3 uploads to complete
+            for future in word_upload_futures + char_upload_futures:
+                try:
+                    future.result()
+                except Exception as e:
+                    logger.error(f"S3 upload error: {e}")
+
+            # Save to DynamoDB
+            if db_items:
+                self.aws_service.save_to_dynamodb(db_items)
+
+            page_data["full_text"] = page_data["full_text"].strip()
+            yield page_data
+
+        except Exception as e:
+            logger.error(f"Error in _process_image_object: {e}")
+            yield {"error": str(e), "page": page_num}
+
+    def _extract_characters(self, word_image, text, file_id, page_num, word_index):
+        """Extract individual characters from a word image"""
+        char_data = {"characters": [], "upload_futures": []}
+
+        try:
+            # Get character-level OCR data with configured language (default: Sanskrit)
+            char_ocr_data = pytesseract.image_to_boxes(
+                word_image,
+                lang=self.tesseract_lang,
+                output_type=pytesseract.Output.DICT
+            )
+
+            h, w = word_image.shape[:2]
+
+            # Check if 'char' key exists and has data
+            if 'char' not in char_ocr_data or not char_ocr_data['char']:
+                return char_data
+
+            for j in range(len(char_ocr_data['char'])):
+                char = char_ocr_data['char'][j]
+                x1 = char_ocr_data['left'][j]
+                y1 = h - char_ocr_data['top'][j]
+                x2 = char_ocr_data['right'][j]
+                y2 = h - char_ocr_data['bottom'][j]
+
+                # Extract character image
+                char_image = word_image[y2:y1, x1:x2]
+
+                if char_image.size == 0:
+                    continue
+
+                char_filename = f"{file_id}/page_{page_num}/word_{word_index}_char_{j}_{uuid.uuid4().hex}.png"
+
+                # Convert character image to bytes
+                _, char_buffer = cv2.imencode('.png', char_image)
+                char_bytes = char_buffer.tobytes()
+
+                # Upload to S3 asynchronously
+                future = self.aws_service.upload_to_s3_async(
+                    char_bytes,
+                    char_filename,
+                    Config.S3_CHAR_BUCKET
+                )
+                char_data["upload_futures"].append(future)
+
+                char_data["characters"].append({
+                    "char": char,
+                    "image_filename": char_filename,
+                    "image_url": f"s3://{Config.S3_CHAR_BUCKET}/{char_filename}"
+                })
+
+        except Exception as e:
+            logger.error(f"Error extracting characters: {e}")
+
+        return char_data
+
+    def cleanup(self):
+        """Cleanup resources"""
+        self.aws_service.shutdown()
