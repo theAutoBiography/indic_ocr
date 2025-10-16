@@ -1,6 +1,8 @@
 import os
 from dotenv import load_dotenv
 
+# Load .env file if it exists (local development)
+# In production (Lambda), environment variables are set directly
 load_dotenv()
 
 class Config:

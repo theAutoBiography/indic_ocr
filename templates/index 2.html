@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -207,8 +206,7 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
 
-        .page-image-container,
-        .text-content-container {
+        .page-image-container, .text-content-container {
             display: flex;
             flex-direction: column;
         }
@@ -456,42 +454,6 @@
             transform: scale(1.05);
         }
 
-        /* Transliteration Suggestions */
-        .transliteration-suggestions {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            right: 0;
-            background: white;
-            border: 2px solid var(--primary-color);
-            border-radius: 8px;
-            margin-top: 5px;
-            max-height: 200px;
-            overflow-y: auto;
-            z-index: 1000;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-
-        .transliteration-option {
-            padding: 10px 15px;
-            cursor: pointer;
-            border-bottom: 1px solid var(--border-color);
-            transition: background 0.2s;
-        }
-
-        .transliteration-option:last-child {
-            border-bottom: none;
-        }
-
-        .transliteration-option:hover {
-            background: var(--bg-light);
-        }
-
-        .transliteration-option.selected {
-            background: var(--primary-color);
-            color: white;
-        }
-
         @media (max-width: 768px) {
             .page-result {
                 grid-template-columns: 1fr;
@@ -511,7 +473,6 @@
         }
     </style>
 </head>
-
 <body>
     <!-- Terms and Conditions Modal -->
     <div id="termsModal" class="modal-overlay">
@@ -523,8 +484,7 @@
                 <p><strong>Please read these terms carefully before using Drishti OCR.</strong></p>
 
                 <h4>1. OCR Technology</h4>
-                <p>Drishti uses <strong>Tesseract OCR</strong> (open-source) out of the box for optical character
-                    recognition. The accuracy of text extraction depends on:</p>
+                <p>Drishti uses <strong>Tesseract OCR</strong> (open-source) out of the box for optical character recognition. The accuracy of text extraction depends on:</p>
                 <ul>
                     <li>Image quality and resolution</li>
                     <li>Font clarity and size</li>
@@ -536,11 +496,9 @@
                 <p>By using this service, you explicitly consent to the following:</p>
                 <ul>
                     <li>We collect and store the <strong>raw text extracted</strong> from your uploaded documents</li>
-                    <li>We may <strong>process, analyze, and use this data</strong> for service improvement, research,
-                        and development purposes</li>
+                    <li>We may <strong>process, analyze, and use this data</strong> for service improvement, research, and development purposes</li>
                     <li>Uploaded documents and extracted text may be <strong>stored indefinitely</strong></li>
-                    <li>We reserve the right to <strong>use the collected data as we deem necessary</strong>, including
-                        but not limited to:
+                    <li>We reserve the right to <strong>use the collected data as we deem necessary</strong>, including but not limited to:
                         <ul>
                             <li>Training and improving OCR models</li>
                             <li>Analytics and research</li>
@@ -552,11 +510,9 @@
                 <h4>3. User Responsibilities</h4>
                 <p>You agree that:</p>
                 <ul>
-                    <li>You will <strong>not upload sensitive, confidential, or personal information</strong> that you
-                        do not wish to be stored and processed</li>
+                    <li>You will <strong>not upload sensitive, confidential, or personal information</strong> that you do not wish to be stored and processed</li>
                     <li>You have the <strong>legal right to upload and process</strong> the documents you submit</li>
-                    <li>You understand that this is a <strong>research/development tool</strong> and not intended for
-                        production use with sensitive data</li>
+                    <li>You understand that this is a <strong>research/development tool</strong> and not intended for production use with sensitive data</li>
                 </ul>
 
                 <h4>4. No Warranty</h4>
@@ -615,8 +571,7 @@
 
                     <label for="correctedText" style="margin-top: 20px;">Enter Correct Text:</label>
                     <div style="position: relative;">
-                        <input type="text" id="correctedText" placeholder="Type in English to transliterate..."
-                            autofocus>
+                        <input type="text" id="correctedText" placeholder="Type in English to transliterate..." autofocus>
                         <div id="transliterationSuggestions" class="transliteration-suggestions hidden"></div>
                     </div>
                     <div style="margin-top: 10px; font-size: 0.85rem; color: #718096;">
@@ -655,8 +610,7 @@
         <div class="upload-card">
             <!-- Language Selection -->
             <div style="margin-bottom: 15px;">
-                <label for="languageSelect"
-                    style="font-size: 0.9rem; font-weight: 600; color: var(--text-dark); margin-bottom: 8px; display: block;">
+                <label for="languageSelect" style="font-size: 0.9rem; font-weight: 600; color: var(--text-dark); margin-bottom: 8px; display: block;">
                     <i class="fas fa-language"></i> Document Language
                 </label>
                 <select id="languageSelect" class="language-select">
@@ -682,8 +636,7 @@
                 </div>
                 <div class="upload-title">Drag & Drop files here</div>
                 <div class="upload-subtitle">or click to browse</div>
-                <div class="upload-subtitle mt-1" style="font-size: 0.8rem;">Images (PNG, JPG, TIFF) or PDF • Max 100MB
-                </div>
+                <div class="upload-subtitle mt-1" style="font-size: 0.8rem;">Images (PNG, JPG, TIFF) or PDF • Max 100MB</div>
                 <input type="file" id="fileInput" class="hidden" accept=".png,.jpg,.jpeg,.pdf,.tiff,.bmp">
             </div>
 
@@ -712,7 +665,7 @@
                     </h5>
                     <div class="progress">
                         <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated"
-                            role="progressbar" style="width: 0%"></div>
+                             role="progressbar" style="width: 0%"></div>
                     </div>
                     <p class="mt-3" id="progressText" style="color: #718096;">Uploading file...</p>
                 </div>
@@ -731,208 +684,205 @@
 
         <!-- Footer -->
         <div style="text-align: center; padding: 20px; margin-top: 30px;">
-            <a href="#" id="viewTermsLink"
-                style="color: rgba(255, 255, 255, 0.8); text-decoration: none; font-size: 0.9rem;">
+            <a href="#" id="viewTermsLink" style="color: rgba(255, 255, 255, 0.8); text-decoration: none; font-size: 0.9rem;">
                 <i class="fas fa-file-contract"></i> View Terms & Conditions
             </a>
-            <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.85rem; margin-top: 5px;">
-                &copy; 2025 Drishti OCR.
-            </div>
         </div>
+    </div>
 
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-        <script>
-            const uploadZone = document.getElementById('uploadZone');
-            const fileInput = document.getElementById('fileInput');
-            const fileInfo = document.getElementById('fileInfo');
-            const fileName = document.getElementById('fileName');
-            const uploadBtn = document.getElementById('uploadBtn');
-            const cancelBtn = document.getElementById('cancelBtn');
-            const progressSection = document.getElementById('progressSection');
-            const resultsSection = document.getElementById('resultsSection');
-            const resultsContent = document.getElementById('resultsContent');
-            const progressBar = document.getElementById('progressBar');
-            const progressText = document.getElementById('progressText');
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const progressSection = document.getElementById('progressSection');
+        const resultsSection = document.getElementById('resultsSection');
+        const resultsContent = document.getElementById('resultsContent');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
 
-            // Terms and Conditions Modal
-            const termsModal = document.getElementById('termsModal');
-            const acceptTermsCheckbox = document.getElementById('acceptTerms');
-            const acceptBtn = document.getElementById('acceptBtn');
-            const declineBtn = document.getElementById('declineBtn');
+        // Terms and Conditions Modal
+        const termsModal = document.getElementById('termsModal');
+        const acceptTermsCheckbox = document.getElementById('acceptTerms');
+        const acceptBtn = document.getElementById('acceptBtn');
+        const declineBtn = document.getElementById('declineBtn');
 
-            let selectedFile = null;
-            let termsAccepted = false;
-            let currentFileId = null;
-            let currentWordData = null;
+        let selectedFile = null;
+        let termsAccepted = false;
+        let currentFileId = null;
+        let currentWordData = null;
 
-            // Check if user has already accepted terms
-            if (localStorage.getItem('termsAccepted') === 'true') {
-                termsAccepted = true;
-                termsModal.classList.add('hidden');
+        // Check if user has already accepted terms
+        if (localStorage.getItem('termsAccepted') === 'true') {
+            termsAccepted = true;
+            termsModal.classList.add('hidden');
+        }
+
+        // Enable/disable accept button based on checkbox
+        acceptTermsCheckbox.addEventListener('change', (e) => {
+            acceptBtn.disabled = !e.target.checked;
+        });
+
+        // Accept terms
+        acceptBtn.addEventListener('click', () => {
+            termsAccepted = true;
+            localStorage.setItem('termsAccepted', 'true');
+            termsModal.classList.add('hidden');
+        });
+
+        // Decline terms
+        declineBtn.addEventListener('click', () => {
+            alert('You must accept the Terms and Conditions to use this service.');
+        });
+
+        // View terms link
+        document.getElementById('viewTermsLink').addEventListener('click', (e) => {
+            e.preventDefault();
+            termsModal.classList.remove('hidden');
+        });
+
+        // Click to select file
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        // File selected
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                selectedFile = e.target.files[0];
+                fileName.textContent = selectedFile.name;
+                fileInfo.classList.remove('hidden');
+            }
+        });
+
+        // Drag and drop
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+
+            if (e.dataTransfer.files.length > 0) {
+                selectedFile = e.dataTransfer.files[0];
+                fileName.textContent = selectedFile.name;
+                fileInfo.classList.remove('hidden');
+            }
+        });
+
+        // Cancel selection
+        cancelBtn.addEventListener('click', () => {
+            selectedFile = null;
+            fileInput.value = '';
+            fileInfo.classList.add('hidden');
+        });
+
+        // Upload and process
+        uploadBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            // Check if terms are accepted
+            if (!termsAccepted) {
+                alert('Please accept the Terms and Conditions to continue.');
+                termsModal.classList.remove('hidden');
+                return;
             }
 
-            // Enable/disable accept button based on checkbox
-            acceptTermsCheckbox.addEventListener('change', (e) => {
-                acceptBtn.disabled = !e.target.checked;
-            });
+            // Get selected language
+            const selectedLanguage = document.getElementById('languageSelect').value;
 
-            // Accept terms
-            acceptBtn.addEventListener('click', () => {
-                termsAccepted = true;
-                localStorage.setItem('termsAccepted', 'true');
-                termsModal.classList.add('hidden');
-            });
+            // Reset UI
+            resultsSection.classList.add('hidden');
+            resultsContent.innerHTML = '';
+            progressSection.classList.remove('hidden');
+            progressBar.style.width = '0%';
+            progressText.textContent = 'Uploading file...';
 
-            // Decline terms
-            declineBtn.addEventListener('click', () => {
-                alert('You must accept the Terms and Conditions to use this service.');
-            });
+            try {
+                // Upload file
+                const formData = new FormData();
+                formData.append('file', selectedFile);
 
-            // View terms link
-            document.getElementById('viewTermsLink').addEventListener('click', (e) => {
-                e.preventDefault();
-                termsModal.classList.remove('hidden');
-            });
+                const uploadResponse = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
 
-            // Click to select file
-            uploadZone.addEventListener('click', () => fileInput.click());
-
-            // File selected
-            fileInput.addEventListener('change', (e) => {
-                if (e.target.files.length > 0) {
-                    selectedFile = e.target.files[0];
-                    fileName.textContent = selectedFile.name;
-                    fileInfo.classList.remove('hidden');
-                }
-            });
-
-            // Drag and drop
-            uploadZone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                uploadZone.classList.add('dragover');
-            });
-
-            uploadZone.addEventListener('dragleave', () => {
-                uploadZone.classList.remove('dragover');
-            });
-
-            uploadZone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                uploadZone.classList.remove('dragover');
-
-                if (e.dataTransfer.files.length > 0) {
-                    selectedFile = e.dataTransfer.files[0];
-                    fileName.textContent = selectedFile.name;
-                    fileInfo.classList.remove('hidden');
-                }
-            });
-
-            // Cancel selection
-            cancelBtn.addEventListener('click', () => {
-                selectedFile = null;
-                fileInput.value = '';
-                fileInfo.classList.add('hidden');
-            });
-
-            // Upload and process
-            uploadBtn.addEventListener('click', async () => {
-                if (!selectedFile) return;
-
-                // Check if terms are accepted
-                if (!termsAccepted) {
-                    alert('Please accept the Terms and Conditions to continue.');
-                    termsModal.classList.remove('hidden');
-                    return;
+                if (!uploadResponse.ok) {
+                    throw new Error('Upload failed');
                 }
 
-                // Get selected language
-                const selectedLanguage = document.getElementById('languageSelect').value;
+                const uploadData = await uploadResponse.json();
+                const fileId = uploadData.file_id;
+                const fileExtension = uploadData.file_extension;
 
-                // Reset UI
-                resultsSection.classList.add('hidden');
-                resultsContent.innerHTML = '';
-                progressSection.classList.remove('hidden');
-                progressBar.style.width = '0%';
-                progressText.textContent = 'Uploading file...';
+                progressBar.style.width = '30%';
+                progressText.textContent = 'Processing document...';
 
-                try {
-                    // Upload file
-                    const formData = new FormData();
-                    formData.append('file', selectedFile);
+                // Process file with Server-Sent Events and language parameter
+                // URL encode the language to preserve + signs
+                const eventSource = new EventSource(`/process/${fileId}?lang=${encodeURIComponent(selectedLanguage)}`);
+                let pageCount = 0;
 
-                    const uploadResponse = await fetch('/upload', {
-                        method: 'POST',
-                        body: formData
-                    });
+                eventSource.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
 
-                    if (!uploadResponse.ok) {
-                        throw new Error('Upload failed');
+                    if (data.error) {
+                        progressText.textContent = `Error: ${data.error}`;
+                        eventSource.close();
+                        return;
                     }
 
-                    const uploadData = await uploadResponse.json();
-                    const fileId = uploadData.file_id;
-                    const fileExtension = uploadData.file_extension;
-
-                    progressBar.style.width = '30%';
-                    progressText.textContent = 'Processing document...';
-
-                    // Process file with Server-Sent Events and language parameter
-                    // URL encode the language to preserve + signs
-                    const eventSource = new EventSource(`/process/${fileId}?lang=${encodeURIComponent(selectedLanguage)}`);
-                    let pageCount = 0;
-
-                    eventSource.onmessage = (event) => {
-                        const data = JSON.parse(event.data);
-
-                        if (data.error) {
-                            progressText.textContent = `Error: ${data.error}`;
-                            eventSource.close();
-                            return;
-                        }
-
-                        if (data.complete) {
-                            eventSource.close();
-                            progressBar.style.width = '100%';
-                            progressText.textContent = 'Processing complete!';
-                            setTimeout(() => {
-                                progressSection.classList.add('hidden');
-                            }, 1000);
-                            return;
-                        }
-
-                        // Display page results
-                        pageCount++;
-                        displayPageResult(data, fileId, fileExtension);
-                        resultsSection.classList.remove('hidden');
-                        progressText.textContent = `Processing page ${pageCount}...`;
-                        progressBar.style.width = `${Math.min(30 + pageCount * 10, 90)}%`;
-                    };
-
-                    eventSource.onerror = (error) => {
-                        console.error('EventSource error:', error);
-                        progressText.textContent = 'Error processing file';
+                    if (data.complete) {
                         eventSource.close();
-                    };
+                        progressBar.style.width = '100%';
+                        progressText.textContent = 'Processing complete!';
+                        setTimeout(() => {
+                            progressSection.classList.add('hidden');
+                        }, 1000);
+                        return;
+                    }
 
-                } catch (error) {
-                    console.error('Error:', error);
-                    progressText.textContent = `Error: ${error.message}`;
-                }
-            });
+                    // Display page results
+                    pageCount++;
+                    displayPageResult(data, fileId, fileExtension);
+                    resultsSection.classList.remove('hidden');
+                    progressText.textContent = `Processing page ${pageCount}...`;
+                    progressBar.style.width = `${Math.min(30 + pageCount * 10, 90)}%`;
+                };
 
-            function displayPageResult(pageData, fileId, fileExtension) {
-                const pageDiv = document.createElement('div');
-                pageDiv.className = 'page-result';
+                eventSource.onerror = (error) => {
+                    console.error('EventSource error:', error);
+                    progressText.textContent = 'Error processing file';
+                    eventSource.close();
+                };
 
-                // Determine image URL based on file type
-                let imageUrl;
-                if (fileExtension === '.pdf') {
-                    imageUrl = `/page/${fileId}/${pageData.page}`;
-                } else {
-                    imageUrl = `/file/${fileId}`;
-                }
+            } catch (error) {
+                console.error('Error:', error);
+                progressText.textContent = `Error: ${error.message}`;
+            }
+        });
 
-                let pageHtml = `
+        function displayPageResult(pageData, fileId, fileExtension) {
+            const pageDiv = document.createElement('div');
+            pageDiv.className = 'page-result';
+
+            // Determine image URL based on file type
+            let imageUrl;
+            if (fileExtension === '.pdf') {
+                imageUrl = `/page/${fileId}/${pageData.page}`;
+            } else {
+                imageUrl = `/file/${fileId}`;
+            }
+
+            let pageHtml = `
                 <div class="page-image-container">
                     <div class="section-title">Page ${pageData.page} - Original</div>
                     <img src="${imageUrl}" alt="Page ${pageData.page}" class="original-image">
@@ -942,9 +892,9 @@
                     <div class="text-content">
             `;
 
-                pageData.words.forEach((word, index) => {
-                    if (word.confidence < 80) {
-                        pageHtml += `
+            pageData.words.forEach((word, index) => {
+                if (word.confidence < 80) {
+                    pageHtml += `
                         <span class="word low-confidence"
                               data-file-id="${fileId}"
                               data-page="${pageData.page}"
@@ -957,281 +907,159 @@
                             <span class="badge bg-warning confidence-badge">${word.confidence.toFixed(0)}%</span>
                         </span>
                     `;
+                } else {
+                    pageHtml += `<span class="word">${word.text}</span>`;
+                }
+            });
+
+            pageHtml += '</div></div>';
+
+            pageDiv.innerHTML = pageHtml;
+            resultsContent.appendChild(pageDiv);
+
+            // Initialize tooltips
+            const tooltips = pageDiv.querySelectorAll('[data-bs-toggle="tooltip"]');
+            tooltips.forEach(el => new bootstrap.Tooltip(el));
+
+            // Add click listeners to low-confidence words
+            const lowConfWords = pageDiv.querySelectorAll('.word.low-confidence');
+            lowConfWords.forEach(wordEl => {
+                wordEl.addEventListener('click', () => openCorrectionModal(wordEl));
+            });
+        }
+
+        // Correction Modal Logic
+        const correctionModal = document.getElementById('correctionModal');
+        const correctedTextInput = document.getElementById('correctedText');
+        const submitCorrectionBtn = document.getElementById('submitCorrectionBtn');
+        const cancelCorrectionBtn = document.getElementById('cancelCorrectionBtn');
+        const approveForTrainingCheckbox = document.getElementById('approveForTraining');
+
+        async function openCorrectionModal(wordElement) {
+            const fileId = wordElement.dataset.fileId;
+            const page = parseInt(wordElement.dataset.page);
+            const wordIndex = parseInt(wordElement.dataset.wordIndex);
+            const text = wordElement.dataset.text;
+            const confidence = parseFloat(wordElement.dataset.confidence);
+
+            currentFileId = fileId;
+            currentWordData = { fileId, page, wordIndex, text, confidence };
+
+            // Populate modal
+            document.getElementById('originalText').textContent = text;
+            document.getElementById('wordConfidence').textContent = `${confidence.toFixed(1)}%`;
+            correctedTextInput.value = text; // Pre-fill with original text
+
+            // Fetch full word data including images
+            try {
+                const response = await fetch(`/api/word/${fileId}/${page}/${wordIndex}`);
+                const data = await response.json();
+
+                if (data.success && data.word) {
+                    document.getElementById('wordLanguage').textContent = data.word.language || 'Unknown';
+                    document.getElementById('wordScript').textContent = data.word.detected_script || 'Unknown';
+
+                    // Show word image if available
+                    if (data.word.word_image_url) {
+                        document.getElementById('wordImage').src = data.word.word_image_url;
+                        document.getElementById('wordImageContainer').classList.remove('hidden');
                     } else {
-                        pageHtml += `<span class="word">${word.text}</span>`;
+                        document.getElementById('wordImageContainer').classList.add('hidden');
                     }
-                });
-
-                pageHtml += '</div></div>';
-
-                pageDiv.innerHTML = pageHtml;
-                resultsContent.appendChild(pageDiv);
-
-                // Initialize tooltips
-                const tooltips = pageDiv.querySelectorAll('[data-bs-toggle="tooltip"]');
-                tooltips.forEach(el => new bootstrap.Tooltip(el));
-
-                // Add click listeners to low-confidence words
-                const lowConfWords = pageDiv.querySelectorAll('.word.low-confidence');
-                lowConfWords.forEach(wordEl => {
-                    wordEl.addEventListener('click', () => openCorrectionModal(wordEl));
-                });
+                }
+            } catch (error) {
+                console.error('Error fetching word details:', error);
+                document.getElementById('wordLanguage').textContent = 'Unknown';
+                document.getElementById('wordScript').textContent = 'Unknown';
             }
 
-            // Correction Modal Logic
-            const correctionModal = document.getElementById('correctionModal');
-            const correctedTextInput = document.getElementById('correctedText');
-            const submitCorrectionBtn = document.getElementById('submitCorrectionBtn');
-            const cancelCorrectionBtn = document.getElementById('cancelCorrectionBtn');
-            const approveForTrainingCheckbox = document.getElementById('approveForTraining');
+            // Show modal
+            correctionModal.classList.remove('hidden');
+            correctedTextInput.focus();
+        }
 
-            async function openCorrectionModal(wordElement) {
-                const fileId = wordElement.dataset.fileId;
-                const page = parseInt(wordElement.dataset.page);
-                const wordIndex = parseInt(wordElement.dataset.wordIndex);
-                const text = wordElement.dataset.text;
-                const confidence = parseFloat(wordElement.dataset.confidence);
+        cancelCorrectionBtn.addEventListener('click', () => {
+            correctionModal.classList.add('hidden');
+            currentWordData = null;
+        });
 
-                currentFileId = fileId;
-                currentWordData = { fileId, page, wordIndex, text, confidence };
+        submitCorrectionBtn.addEventListener('click', async () => {
+            if (!currentWordData) return;
 
-                // Populate modal
-                document.getElementById('originalText').textContent = text;
-                document.getElementById('wordConfidence').textContent = `${confidence.toFixed(1)}%`;
-                correctedTextInput.value = text; // Pre-fill with original text
-
-                // Fetch full word data including images
-                try {
-                    const response = await fetch(`/api/word/${fileId}/${page}/${wordIndex}`);
-                    const data = await response.json();
-
-                    if (data.success && data.word) {
-                        document.getElementById('wordLanguage').textContent = data.word.language || 'Unknown';
-                        document.getElementById('wordScript').textContent = data.word.detected_script || 'Unknown';
-
-                        // Show word image if available
-                        if (data.word.word_image_url) {
-                            document.getElementById('wordImage').src = data.word.word_image_url;
-                            document.getElementById('wordImageContainer').classList.remove('hidden');
-                        } else {
-                            document.getElementById('wordImageContainer').classList.add('hidden');
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error fetching word details:', error);
-                    document.getElementById('wordLanguage').textContent = 'Unknown';
-                    document.getElementById('wordScript').textContent = 'Unknown';
-                }
-
-                // Show modal
-                correctionModal.classList.remove('hidden');
-                correctedTextInput.focus();
+            const correctedText = correctedTextInput.value.trim();
+            if (!correctedText) {
+                alert('Please enter corrected text');
+                return;
             }
 
-            cancelCorrectionBtn.addEventListener('click', () => {
-                correctionModal.classList.add('hidden');
-                currentWordData = null;
-            });
+            const approveForTraining = approveForTrainingCheckbox.checked;
 
-            submitCorrectionBtn.addEventListener('click', async () => {
-                if (!currentWordData) return;
+            try {
+                submitCorrectionBtn.disabled = true;
+                submitCorrectionBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
 
-                const correctedText = correctedTextInput.value.trim();
-                if (!correctedText) {
-                    alert('Please enter corrected text');
-                    return;
-                }
+                const response = await fetch('/api/correction', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        file_id: currentWordData.fileId,
+                        page: currentWordData.page,
+                        word_index: currentWordData.wordIndex,
+                        corrected_text: correctedText,
+                        approve_for_training: approveForTraining
+                    })
+                });
 
-                const approveForTraining = approveForTrainingCheckbox.checked;
+                const data = await response.json();
 
-                try {
-                    submitCorrectionBtn.disabled = true;
-                    submitCorrectionBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+                if (data.success) {
+                    // Update the word in the UI
+                    const wordElement = document.querySelector(
+                        `.word[data-file-id="${currentWordData.fileId}"][data-page="${currentWordData.page}"][data-word-index="${currentWordData.wordIndex}"]`
+                    );
 
-                    const response = await fetch('/api/correction', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            file_id: currentWordData.fileId,
-                            page: currentWordData.page,
-                            word_index: currentWordData.wordIndex,
-                            corrected_text: correctedText,
-                            approve_for_training: approveForTraining
-                        })
-                    });
-
-                    const data = await response.json();
-
-                    if (data.success) {
-                        // Update the word in the UI
-                        const wordElement = document.querySelector(
-                            `.word[data-file-id="${currentWordData.fileId}"][data-page="${currentWordData.page}"][data-word-index="${currentWordData.wordIndex}"]`
-                        );
-
-                        if (wordElement) {
-                            // Remove low-confidence styling and update text
-                            wordElement.classList.remove('low-confidence');
-                            wordElement.classList.add('word-corrected');
-                            wordElement.innerHTML = correctedText + ' <span class="badge bg-success">✓</span>';
-                            wordElement.removeAttribute('data-bs-toggle');
-                            wordElement.style.cursor = 'default';
-                            wordElement.style.background = '#c6f6d5';
-                        }
-
-                        // Close modal
-                        correctionModal.classList.add('hidden');
-                        currentWordData = null;
-                        alert('Correction submitted successfully!');
-                    } else {
-                        alert(`Error: ${data.error || 'Failed to submit correction'}`);
+                    if (wordElement) {
+                        // Remove low-confidence styling and update text
+                        wordElement.classList.remove('low-confidence');
+                        wordElement.classList.add('word-corrected');
+                        wordElement.innerHTML = correctedText + ' <span class="badge bg-success">✓</span>';
+                        wordElement.removeAttribute('data-bs-toggle');
+                        wordElement.style.cursor = 'default';
+                        wordElement.style.background = '#c6f6d5';
                     }
-                } catch (error) {
-                    console.error('Error submitting correction:', error);
-                    alert(`Error: ${error.message}`);
-                } finally {
-                    submitCorrectionBtn.disabled = false;
-                    submitCorrectionBtn.innerHTML = '<i class="fas fa-check"></i> Submit Correction';
-                }
-            });
 
-            // Allow Enter key to submit correction
-            correctedTextInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    submitCorrectionBtn.click();
-                }
-            });
-
-            // Close modal on outside click
-            correctionModal.addEventListener('click', (e) => {
-                if (e.target === correctionModal) {
+                    // Close modal
                     correctionModal.classList.add('hidden');
                     currentWordData = null;
+                    alert('Correction submitted successfully!');
+                } else {
+                    alert(`Error: ${data.error || 'Failed to submit correction'}`);
                 }
-            });
-
-            // Transliteration functionality
-            const transliterationSuggestions = document.getElementById('transliterationSuggestions');
-            const enableTransliteration = document.getElementById('enableTransliteration');
-            let transliterationTimeout;
-            let selectedSuggestionIndex = -1;
-            let suggestions = [];
-            let currentTargetLanguage = 'hi'; // Default to Hindi
-
-            // Map script to Google Input Tools language code
-            const scriptToLanguageMap = {
-                'Devanagari': 'hi',  // Hindi for Devanagari (also works for Sanskrit)
-                'Tamil': 'ta',
-                'Telugu': 'te',
-                'Kannada': 'kn',
-                'Malayalam': 'ml',
-                'Bengali': 'bn',
-                'Gujarati': 'gu',
-                'Oriya': 'or',
-                'Gurmukhi': 'pa'
-            };
-
-            async function fetchTransliterations(text, targetLanguage) {
-                try {
-                    const response = await fetch(`https://inputtools.google.com/request?text=${encodeURIComponent(text)}&itc=${targetLanguage}-t-i0-und&num=5`);
-                    const data = await response.json();
-
-                    if (data && data[0] === 'SUCCESS' && data[1] && data[1][0] && data[1][0][1]) {
-                        return data[1][0][1];
-                    }
-                    return [];
-                } catch (error) {
-                    console.error('Transliteration error:', error);
-                    return [];
-                }
+            } catch (error) {
+                console.error('Error submitting correction:', error);
+                alert(`Error: ${error.message}`);
+            } finally {
+                submitCorrectionBtn.disabled = false;
+                submitCorrectionBtn.innerHTML = '<i class="fas fa-check"></i> Submit Correction';
             }
+        });
 
-            correctedTextInput.addEventListener('input', async (e) => {
-                if (!enableTransliteration.checked) {
-                    transliterationSuggestions.classList.add('hidden');
-                    return;
-                }
-
-                const text = e.target.value.trim();
-                clearTimeout(transliterationTimeout);
-
-                if (text.length < 2) {
-                    transliterationSuggestions.classList.add('hidden');
-                    return;
-                }
-
-                transliterationTimeout = setTimeout(async () => {
-                    suggestions = await fetchTransliterations(text, currentTargetLanguage);
-
-                    if (suggestions.length > 0) {
-                        transliterationSuggestions.innerHTML = suggestions.map((suggestion, index) =>
-                            `<div class="transliteration-option" data-index="${index}">${suggestion}</div>`
-                        ).join('');
-                        transliterationSuggestions.classList.remove('hidden');
-                        selectedSuggestionIndex = -1;
-
-                        // Add click handlers
-                        document.querySelectorAll('.transliteration-option').forEach(option => {
-                            option.addEventListener('click', () => {
-                                correctedTextInput.value = option.textContent;
-                                transliterationSuggestions.classList.add('hidden');
-                            });
-                        });
-                    } else {
-                        transliterationSuggestions.classList.add('hidden');
-                    }
-                }, 300);
-            });
-
-            // Handle keyboard navigation
-            correctedTextInput.addEventListener('keydown', (e) => {
-                if (!enableTransliteration.checked || transliterationSuggestions.classList.contains('hidden')) {
-                    return;
-                }
-
-                if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    selectedSuggestionIndex = Math.min(selectedSuggestionIndex + 1, suggestions.length - 1);
-                    updateSelectedSuggestion();
-                } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    selectedSuggestionIndex = Math.max(selectedSuggestionIndex - 1, -1);
-                    updateSelectedSuggestion();
-                } else if (e.key === 'Enter' && selectedSuggestionIndex >= 0) {
-                    e.preventDefault();
-                    correctedTextInput.value = suggestions[selectedSuggestionIndex];
-                    transliterationSuggestions.classList.add('hidden');
-                } else if (e.key === 'Escape') {
-                    transliterationSuggestions.classList.add('hidden');
-                }
-            });
-
-            function updateSelectedSuggestion() {
-                document.querySelectorAll('.transliteration-option').forEach((option, index) => {
-                    if (index === selectedSuggestionIndex) {
-                        option.classList.add('selected');
-                    } else {
-                        option.classList.remove('selected');
-                    }
-                });
+        // Allow Enter key to submit correction
+        correctedTextInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                submitCorrectionBtn.click();
             }
+        });
 
-            // Update target language based on detected script
-            function updateTransliterationLanguage(script) {
-                currentTargetLanguage = scriptToLanguageMap[script] || 'hi';
+        // Close modal on outside click
+        correctionModal.addEventListener('click', (e) => {
+            if (e.target === correctionModal) {
+                correctionModal.classList.add('hidden');
+                currentWordData = null;
             }
-
-            // Modify openCorrectionModal to set the target language
-            const originalOpenCorrectionModal = openCorrectionModal;
-            openCorrectionModal = async function (wordElement) {
-                await originalOpenCorrectionModal(wordElement);
-
-                // Set transliteration language based on detected script
-                const script = document.getElementById('wordScript').textContent;
-                updateTransliterationLanguage(script);
-            };
-        </script>
+        });
+    </script>
 </body>
-
 </html>

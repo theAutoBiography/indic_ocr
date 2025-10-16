@@ -33,6 +33,7 @@ class OCRProcessor:
 
     def _process_pdf(self, pdf_path, file_id):
         """Process PDF page by page"""
+        page_num = 0  # Initialize page_num to avoid unbound variable error
         try:
             images = convert_from_path(pdf_path)
             for page_num, image in enumerate(images, start=0):

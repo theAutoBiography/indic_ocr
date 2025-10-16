@@ -30,7 +30,6 @@ RUN pip install --no-cache-dir -r ${LAMBDA_TASK_ROOT}/requirements.txt
 # Copy application code
 COPY src/ ${LAMBDA_TASK_ROOT}/src/
 COPY templates/ ${LAMBDA_TASK_ROOT}/templates/
-COPY .env ${LAMBDA_TASK_ROOT}/.env
 
 # Create upload directory
 RUN mkdir -p ${LAMBDA_TASK_ROOT}/uploads
