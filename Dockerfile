@@ -24,7 +24,8 @@ RUN pip install --no-cache-dir Flask==3.0.0 \
     "boto3>=1.34.24" \
     "opencv-python-headless>=4.9.0.80" \
     "numpy>=1.26.3" \
-    python-dotenv==1.0.0
+    python-dotenv==1.0.0 \
+    apig-wsgi==2.18.0
 
 # Download Indic language data
 RUN mkdir -p /usr/share/tesseract-ocr/4.00/tessdata && \

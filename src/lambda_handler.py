@@ -1,13 +1,18 @@
 from src.app import app
 from werkzeug.middleware.proxy_fix import ProxyFix
-import base64
-import sys
-from io import BytesIO
+from apig_wsgi import make_lambda_handler
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.ERROR)
 
 # Apply proxy fix for proper handling behind AWS Lambda
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
-def handler(event, context):
+# Use apig_wsgi to handle Lambda events properly with awslambdaric
+handler = make_lambda_handler(app)
+
+def handler_legacy(event, context):
     # Convert Lambda Function URL event to WSGI environ
     headers = event.get('headers', {})
 
