@@ -81,49 +81,31 @@ def handler(event, context):
 
     app_iter = app(environ, start_response)
 
+    # Always buffer the response (streaming doesn't work reliably with Lambda)
+    try:
+        for data in app_iter:
+            response_data.append(data)
+    finally:
+        if hasattr(app_iter, 'close'):
+            app_iter.close()
+
+    # Build response
+    body_bytes = b''.join(response_data)
+
     # Convert headers to Lambda format
     response_headers_dict = {}
     for key, value in response_headers:
         response_headers_dict[key.lower()] = value
 
-    # If streaming, use Lambda response streaming
-    if is_streaming and hasattr(context, 'awslambdaric_stream'):
-        # For Lambda response streaming
-        try:
-            # Write headers first
-            metadata = {
-                'statusCode': status,
-                'headers': response_headers_dict
-            }
+    # Check if binary content
+    is_binary = False
+    content_type = response_headers_dict.get('content-type', '')
+    if 'image' in content_type or 'application/octet-stream' in content_type:
+        is_binary = True
 
-            # Stream chunks
-            for chunk in app_iter:
-                if chunk:
-                    yield chunk
-        finally:
-            if hasattr(app_iter, 'close'):
-                app_iter.close()
-    else:
-        # Buffered response for non-streaming endpoints
-        try:
-            for data in app_iter:
-                response_data.append(data)
-        finally:
-            if hasattr(app_iter, 'close'):
-                app_iter.close()
-
-        # Build response
-        body_bytes = b''.join(response_data)
-
-        # Check if binary content
-        is_binary = False
-        content_type = response_headers_dict.get('content-type', '')
-        if 'image' in content_type or 'application/octet-stream' in content_type:
-            is_binary = True
-
-        return {
-            'statusCode': status,
-            'headers': response_headers_dict,
-            'body': base64.b64encode(body_bytes).decode('utf-8') if is_binary else body_bytes.decode('utf-8', errors='replace'),
-            'isBase64Encoded': is_binary
-        }
+    return {
+        'statusCode': status,
+        'headers': response_headers_dict,
+        'body': base64.b64encode(body_bytes).decode('utf-8') if is_binary else body_bytes.decode('utf-8', errors='replace'),
+        'isBase64Encoded': is_binary
+    }
