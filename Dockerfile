@@ -1,7 +1,8 @@
 FROM public.ecr.aws/lambda/python:3.11
 
-# Install system dependencies
-RUN dnf install -y \
+# Install system dependencies (Amazon Linux 2 uses yum)
+RUN yum update -y && \
+    yum install -y \
     wget \
     tar \
     gzip \
@@ -14,14 +15,12 @@ RUN dnf install -y \
     libjpeg-devel \
     libpng-devel \
     poppler-utils \
-    && dnf clean all
+    && yum clean all
 
-# Install Tesseract and dependencies from Fedora repos (compatible with AL2023)
-RUN wget https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm && \
-    dnf install -y epel-release-latest-9.noarch.rpm && \
-    dnf install -y tesseract tesseract-langpack-eng && \
-    dnf clean all && \
-    rm -f epel-release-latest-9.noarch.rpm
+# Install Tesseract from EPEL (Amazon Linux 2)
+RUN amazon-linux-extras install epel -y && \
+    yum install -y tesseract tesseract-langpack-eng && \
+    yum clean all
 
 # Create tessdata directory if it doesn't exist and install Indic language data
 RUN mkdir -p /usr/share/tesseract/tessdata && \
