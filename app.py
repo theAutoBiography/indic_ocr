@@ -72,6 +72,9 @@ def process_file(file_id):
 
     def generate():
         try:
+            # Get language parameter from query string
+            language = request.args.get('lang', Config.TESSERACT_LANG)
+
             # Find the file
             file_path = None
             for filename in os.listdir(app.config['UPLOAD_FOLDER']):
@@ -83,8 +86,8 @@ def process_file(file_id):
                 yield f"data: {json.dumps({'error': 'File not found'})}\n\n"
                 return
 
-            # Process file
-            processor = OCRProcessor()
+            # Process file with specified language
+            processor = OCRProcessor(language=language)
 
             for page_result in processor.process_file(file_path, file_id):
                 # Send each page result as it's processed

@@ -16,10 +16,10 @@ logger = logging.getLogger(__name__)
 
 
 class OCRProcessor:
-    def __init__(self):
+    def __init__(self, language=None):
         self.aws_service = AWSService()
         self.confidence_threshold = Config.CONFIDENCE_THRESHOLD
-        self.tesseract_lang = Config.TESSERACT_LANG
+        self.tesseract_lang = language or Config.TESSERACT_LANG
 
     def process_file(self, file_path, file_id):
         """Process a file (image or PDF) and yield results page by page"""

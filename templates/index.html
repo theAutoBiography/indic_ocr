@@ -155,6 +155,28 @@
             background: #cbd5e0;
         }
 
+        .language-select {
+            width: 100%;
+            padding: 10px 15px;
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            font-size: 0.9rem;
+            color: var(--text-dark);
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .language-select:hover {
+            border-color: var(--primary-color);
+        }
+
+        .language-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
         .results-container {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
@@ -269,6 +291,28 @@
 
         <!-- Upload Section -->
         <div class="upload-card">
+            <!-- Language Selection -->
+            <div style="margin-bottom: 15px;">
+                <label for="languageSelect" style="font-size: 0.9rem; font-weight: 600; color: var(--text-dark); margin-bottom: 8px; display: block;">
+                    <i class="fas fa-language"></i> Document Language
+                </label>
+                <select id="languageSelect" class="language-select">
+                    <option value="san+eng+hin">Sanskrit + English + Hindi (Default)</option>
+                    <option value="san">Sanskrit (संस्कृतम्)</option>
+                    <option value="hin">Hindi (हिन्दी)</option>
+                    <option value="tam">Tamil (தமிழ்)</option>
+                    <option value="kan">Kannada (ಕನ್ನಡ)</option>
+                    <option value="tel">Telugu (తెలుగు)</option>
+                    <option value="eng">English</option>
+                    <option value="san+eng">Sanskrit + English</option>
+                    <option value="san+hin">Sanskrit + Hindi</option>
+                    <option value="eng+hin">English + Hindi</option>
+                    <option value="tam+eng">Tamil + English</option>
+                    <option value="kan+eng">Kannada + English</option>
+                    <option value="tel+eng">Telugu + English</option>
+                </select>
+            </div>
+
             <div id="uploadZone" class="upload-zone">
                 <div class="upload-icon">
                     <i class="fas fa-cloud-upload-alt"></i>
@@ -382,6 +426,9 @@
         uploadBtn.addEventListener('click', async () => {
             if (!selectedFile) return;
 
+            // Get selected language
+            const selectedLanguage = document.getElementById('languageSelect').value;
+
             // Reset UI
             resultsSection.classList.add('hidden');
             resultsContent.innerHTML = '';
@@ -410,8 +457,8 @@
                 progressBar.style.width = '30%';
                 progressText.textContent = 'Processing document...';
 
-                // Process file with Server-Sent Events
-                const eventSource = new EventSource(`/process/${fileId}`);
+                // Process file with Server-Sent Events and language parameter
+                const eventSource = new EventSource(`/process/${fileId}?lang=${selectedLanguage}`);
                 let pageCount = 0;
 
                 eventSource.onmessage = (event) => {
