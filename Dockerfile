@@ -1,18 +1,27 @@
 FROM public.ecr.aws/lambda/python:3.11
 
-# Install system dependencies for Tesseract and OpenCV
-RUN yum update -y && \
-    yum install -y \
-    tesseract \
-    tesseract-langpack-eng \
-    poppler-utils \
+# Install system dependencies
+RUN dnf install -y \
     wget \
+    tar \
+    gzip \
     gcc \
     gcc-c++ \
+    make \
     cmake \
     libffi-devel \
     openssl-devel \
-    && yum clean all
+    libjpeg-devel \
+    libpng-devel \
+    poppler-utils \
+    && dnf clean all
+
+# Install Tesseract and dependencies from Fedora repos (compatible with AL2023)
+RUN wget https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm && \
+    dnf install -y epel-release-latest-9.noarch.rpm && \
+    dnf install -y tesseract tesseract-langpack-eng && \
+    dnf clean all && \
+    rm -f epel-release-latest-9.noarch.rpm
 
 # Create tessdata directory if it doesn't exist and install Indic language data
 RUN mkdir -p /usr/share/tesseract/tessdata && \
