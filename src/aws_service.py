@@ -1,5 +1,6 @@
 import boto3
 import io
+import os
 from src.config import Config
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
@@ -11,19 +12,29 @@ logger = logging.getLogger(__name__)
 
 class AWSService:
     def __init__(self):
-        self.s3_client = boto3.client(
-            's3',
-            aws_access_key_id=Config.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=Config.AWS_SECRET_ACCESS_KEY,
-            region_name=Config.AWS_REGION
-        )
+        # Check if running in Lambda (AWS_EXECUTION_ENV is set in Lambda)
+        # or if credentials are explicitly provided (local development)
+        is_lambda = 'AWS_EXECUTION_ENV' in os.environ or 'AWS_LAMBDA_FUNCTION_NAME' in os.environ
 
-        self.dynamodb = boto3.resource(
-            'dynamodb',
-            aws_access_key_id=Config.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=Config.AWS_SECRET_ACCESS_KEY,
-            region_name=Config.AWS_REGION
-        )
+        if is_lambda or not Config.AWS_ACCESS_KEY_ID:
+            # Use Lambda execution role or default credentials chain
+            self.s3_client = boto3.client('s3', region_name=Config.AWS_REGION)
+            self.dynamodb = boto3.resource('dynamodb', region_name=Config.AWS_REGION)
+        else:
+            # Use explicit credentials for local development
+            self.s3_client = boto3.client(
+                's3',
+                aws_access_key_id=Config.AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=Config.AWS_SECRET_ACCESS_KEY,
+                region_name=Config.AWS_REGION
+            )
+
+            self.dynamodb = boto3.resource(
+                'dynamodb',
+                aws_access_key_id=Config.AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=Config.AWS_SECRET_ACCESS_KEY,
+                region_name=Config.AWS_REGION
+            )
 
         self.table = self.dynamodb.Table(Config.DYNAMODB_TABLE)
         self.executor = ThreadPoolExecutor(max_workers=10)
