@@ -1,8 +1,11 @@
 FROM public.ecr.aws/lambda/python:3.10
 
 # Install system dependencies for Tesseract and OpenCV
-# Python 3.10 uses Amazon Linux 2 which has tesseract in repos
+# Enable EPEL repo for tesseract on Amazon Linux 2
 RUN yum update -y && \
+    yum install -y \
+    amazon-linux-extras \
+    && amazon-linux-extras install epel -y && \
     yum install -y \
     tesseract \
     poppler-utils \
