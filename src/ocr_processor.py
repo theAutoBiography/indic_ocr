@@ -16,6 +16,10 @@ import logging
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
+# Set Tesseract path for Lambda environment
+if os.environ.get('AWS_LAMBDA_FUNCTION_NAME'):
+    pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
+
 
 class OCRProcessor:
     def __init__(self, language=None):
