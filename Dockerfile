@@ -10,11 +10,10 @@ RUN yum install -y \
     make \
     && yum clean all
 
-# Install development libraries (only ones that exist in AL2)
-RUN yum install -y \
-    libffi-devel \
-    openssl-devel \
-    && yum clean all
+# Try to install development libraries if available (optional for some packages)
+RUN yum install -y libffi-devel || echo "libffi-devel not available" && \
+    yum install -y openssl-devel || echo "openssl-devel not available" && \
+    yum clean all
 
 # Install poppler-utils for PDF support
 RUN yum install -y poppler-utils || yum install -y poppler && yum clean all
