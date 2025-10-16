@@ -417,7 +417,43 @@ def get_low_confidence_words(file_id):
 
 @app.route('/health')
 def health():
-    return jsonify({"status": "healthy"})
+    import subprocess
+    import pytesseract
+
+    debug_info = {
+        "status": "healthy",
+        "environment": {
+            "LAMBDA_TASK_ROOT": os.environ.get('LAMBDA_TASK_ROOT'),
+            "AWS_EXECUTION_ENV": os.environ.get('AWS_EXECUTION_ENV'),
+            "PATH": os.environ.get('PATH')
+        },
+        "tesseract": {
+            "pytesseract_cmd": pytesseract.pytesseract.tesseract_cmd,
+            "paths_checked": {}
+        }
+    }
+
+    # Check common tesseract paths
+    common_paths = ['/usr/bin/tesseract', '/usr/local/bin/tesseract', '/bin/tesseract']
+    for path in common_paths:
+        exists = os.path.exists(path)
+        debug_info["tesseract"]["paths_checked"][path] = exists
+        if exists:
+            try:
+                result = subprocess.run([path, '--version'], capture_output=True, text=True, timeout=5)
+                debug_info["tesseract"][f"{path}_version"] = result.stdout.strip()
+            except Exception as e:
+                debug_info["tesseract"][f"{path}_error"] = str(e)
+
+    # Try 'which tesseract'
+    try:
+        result = subprocess.run(['which', 'tesseract'], capture_output=True, text=True, timeout=5)
+        debug_info["tesseract"]["which_output"] = result.stdout.strip()
+        debug_info["tesseract"]["which_returncode"] = result.returncode
+    except Exception as e:
+        debug_info["tesseract"]["which_error"] = str(e)
+
+    return jsonify(debug_info)
 
 
 if __name__ == '__main__':
