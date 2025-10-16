@@ -62,16 +62,29 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file part"}), 400
+    try:
+        logger.error(f"Upload endpoint called - Content-Type: {request.content_type}")
+        logger.error(f"Request files: {list(request.files.keys())}")
+        logger.error(f"Request form: {list(request.form.keys())}")
 
-    file = request.files['file']
+        if 'file' not in request.files:
+            logger.error("No 'file' in request.files")
+            return jsonify({"error": "No file part"}), 400
 
-    if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
+        file = request.files['file']
+        logger.error(f"File received: {file.filename}")
 
-    if not allowed_file(file.filename):
-        return jsonify({"error": "File type not allowed"}), 400
+        if file.filename == '':
+            logger.error("Empty filename")
+            return jsonify({"error": "No selected file"}), 400
+
+        if not allowed_file(file.filename):
+            logger.error(f"File type not allowed: {file.filename}")
+            return jsonify({"error": "File type not allowed"}), 400
+
+    except Exception as e:
+        logger.error(f"Error in upload_file validation: {e}", exc_info=True)
+        return jsonify({"error": f"Upload validation failed: {str(e)}"}), 500
 
     try:
         # Generate unique file ID first
@@ -452,6 +465,16 @@ def health():
         debug_info["tesseract"]["which_returncode"] = result.returncode
     except Exception as e:
         debug_info["tesseract"]["which_error"] = str(e)
+
+    # Check poppler (needed for PDF processing)
+    debug_info["poppler"] = {}
+    try:
+        result = subprocess.run(['pdftoppm', '-v'], capture_output=True, text=True, timeout=5)
+        debug_info["poppler"]["pdftoppm_version"] = result.stderr.strip()
+        debug_info["poppler"]["available"] = True
+    except Exception as e:
+        debug_info["poppler"]["error"] = str(e)
+        debug_info["poppler"]["available"] = False
 
     return jsonify(debug_info)
 
