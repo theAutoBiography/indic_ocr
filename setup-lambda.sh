@@ -108,14 +108,7 @@ aws lambda create-function \
     --timeout 900 \
     --memory-size 3008 \
     --ephemeral-storage Size=2048 \
-    --environment "Variables={
-        AWS_REGION=${AWS_REGION},
-        S3_WORD_BUCKET=ocr-word-images,
-        S3_CHAR_BUCKET=ocr-char-images,
-        DYNAMODB_TABLE=ocr-results,
-        UPLOAD_FOLDER=/tmp/uploads,
-        TESSERACT_LANG=san+eng+hin
-    }" \
+    --environment "Variables={S3_WORD_BUCKET=ocr-word-images,S3_CHAR_BUCKET=ocr-char-images,DYNAMODB_TABLE=ocr-results,UPLOAD_FOLDER=/tmp/uploads,TESSERACT_LANG=san+eng+hin}" \
     --region $AWS_REGION
 
 if [ $? -eq 0 ]; then
