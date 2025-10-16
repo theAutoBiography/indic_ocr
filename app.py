@@ -70,11 +70,11 @@ def upload_file():
 def process_file(file_id):
     """Process file and stream results page by page using Server-Sent Events"""
 
+    # Get language parameter from query string BEFORE the generator
+    language = request.args.get('lang', Config.TESSERACT_LANG)
+
     def generate():
         try:
-            # Get language parameter from query string
-            language = request.args.get('lang', Config.TESSERACT_LANG)
-
             # Find the file
             file_path = None
             for filename in os.listdir(app.config['UPLOAD_FOLDER']):
