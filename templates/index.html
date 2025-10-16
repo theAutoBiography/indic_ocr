@@ -456,6 +456,31 @@
             transform: scale(1.05);
         }
 
+        .word.corrected {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            border: 1px solid var(--success-color);
+            padding: 4px 8px;
+            border-radius: 6px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .word.corrected:hover {
+            background: linear-gradient(135deg, #a7f3d0 0%, #6ee7b7 100%);
+            transform: scale(1.05);
+        }
+
+        .corrected-badge {
+            font-size: 0.65em;
+            margin-left: 4px;
+            vertical-align: super;
+            background: var(--success-color);
+            color: white;
+            padding: 2px 5px;
+            border-radius: 4px;
+        }
+
         /* Transliteration Suggestions */
         .transliteration-suggestions {
             position: absolute;
@@ -626,9 +651,12 @@
                         </label>
                     </div>
 
-                    <div class="checkbox-container">
-                        <input type="checkbox" id="approveForTraining">
-                        <label for="approveForTraining">Approve for model training</label>
+                    <div
+                        style="margin-top: 15px; padding: 12px; background: #f0f9ff; border-left: 4px solid var(--primary-color); border-radius: 8px;">
+                        <div style="font-size: 0.9rem; color: #1e40af;">
+                            <i class="fas fa-info-circle"></i> <strong>Note:</strong> Your corrections will be used to
+                            improve our OCR models.
+                        </div>
                     </div>
                 </div>
             </div>
@@ -682,7 +710,7 @@
                 </div>
                 <div class="upload-title">Drag & Drop files here</div>
                 <div class="upload-subtitle">or click to browse</div>
-                <div class="upload-subtitle mt-1" style="font-size: 0.8rem;">Images (PNG, JPG, TIFF) or PDF • Max 100MB
+                <div class="upload-subtitle mt-1" style="font-size: 0.8rem;">Images (PNG) or PDF • Max 100MB
                 </div>
                 <input type="file" id="fileInput" class="hidden" accept=".png,.jpg,.jpeg,.pdf,.tiff,.bmp">
             </div>
@@ -880,6 +908,7 @@
                     // URL encode the language to preserve + signs
                     const eventSource = new EventSource(`/process/${fileId}?lang=${encodeURIComponent(selectedLanguage)}`);
                     let pageCount = 0;
+                    let totalPages = 1;
 
                     eventSource.onmessage = (event) => {
                         const data = JSON.parse(event.data);
@@ -887,6 +916,14 @@
                         if (data.error) {
                             progressText.textContent = `Error: ${data.error}`;
                             eventSource.close();
+                            return;
+                        }
+
+                        // Handle metadata with total page count
+                        if (data.type === 'metadata' && data.total_pages) {
+                            totalPages = data.total_pages;
+                            progressText.textContent = `Processing ${totalPages} page${totalPages > 1 ? 's' : ''}...`;
+                            progressBar.style.width = '30%';
                             return;
                         }
 
@@ -904,8 +941,13 @@
                         pageCount++;
                         displayPageResult(data, fileId, fileExtension);
                         resultsSection.classList.remove('hidden');
-                        progressText.textContent = `Processing page ${pageCount}...`;
-                        progressBar.style.width = `${Math.min(30 + pageCount * 10, 90)}%`;
+
+                        // Calculate accurate progress: 30% for upload + 70% for processing pages
+                        const processingProgress = (pageCount / totalPages) * 70;
+                        const totalProgress = 30 + processingProgress;
+
+                        progressBar.style.width = `${totalProgress}%`;
+                        progressText.textContent = `Processing page ${pageCount} of ${totalPages}...`;
                     };
 
                     eventSource.onerror = (error) => {
@@ -932,6 +974,25 @@
                     imageUrl = `/file/${fileId}`;
                 }
 
+                // Check if page is blank
+                if (pageData.is_blank) {
+                    pageDiv.innerHTML = `
+                        <div class="page-image-container">
+                            <div class="section-title">Page ${pageData.page} - Original</div>
+                            <img src="${imageUrl}" alt="Page ${pageData.page}" class="original-image">
+                        </div>
+                        <div class="text-content-container">
+                            <div class="section-title">Page ${pageData.page} - Extracted Text</div>
+                            <div class="text-content" style="padding: 40px; text-align: center; color: #718096; font-style: italic;">
+                                <i class="fas fa-file-alt" style="font-size: 2rem; margin-bottom: 10px; opacity: 0.5;"></i>
+                                <p>This page appears to be blank or contains no readable text.</p>
+                            </div>
+                        </div>
+                    `;
+                    resultsContent.appendChild(pageDiv);
+                    return;
+                }
+
                 let pageHtml = `
                 <div class="page-image-container">
                     <div class="section-title">Page ${pageData.page} - Original</div>
@@ -943,7 +1004,22 @@
             `;
 
                 pageData.words.forEach((word, index) => {
-                    if (word.confidence < 80) {
+                    // Check if word is corrected (from cache)
+                    if (word.cached && word.is_corrected) {
+                        pageHtml += `
+                        <span class="word corrected"
+                              data-file-id="${fileId}"
+                              data-page="${pageData.page}"
+                              data-word-index="${index}"
+                              data-text="${word.text}"
+                              data-confidence="${word.confidence}"
+                              data-bs-toggle="tooltip"
+                              title="Previously corrected | Click to edit | Confidence: ${word.confidence.toFixed(1)}%">
+                            ${word.text}
+                            <span class="corrected-badge">✓</span>
+                        </span>
+                    `;
+                    } else if (word.confidence < 80) {
                         pageHtml += `
                         <span class="word low-confidence"
                               data-file-id="${fileId}"
@@ -971,9 +1047,9 @@
                 const tooltips = pageDiv.querySelectorAll('[data-bs-toggle="tooltip"]');
                 tooltips.forEach(el => new bootstrap.Tooltip(el));
 
-                // Add click listeners to low-confidence words
-                const lowConfWords = pageDiv.querySelectorAll('.word.low-confidence');
-                lowConfWords.forEach(wordEl => {
+                // Add click listeners to low-confidence and corrected words
+                const editableWords = pageDiv.querySelectorAll('.word.low-confidence, .word.corrected');
+                editableWords.forEach(wordEl => {
                     wordEl.addEventListener('click', () => openCorrectionModal(wordEl));
                 });
             }
@@ -983,7 +1059,6 @@
             const correctedTextInput = document.getElementById('correctedText');
             const submitCorrectionBtn = document.getElementById('submitCorrectionBtn');
             const cancelCorrectionBtn = document.getElementById('cancelCorrectionBtn');
-            const approveForTrainingCheckbox = document.getElementById('approveForTraining');
 
             async function openCorrectionModal(wordElement) {
                 const fileId = wordElement.dataset.fileId;
@@ -1042,8 +1117,6 @@
                     return;
                 }
 
-                const approveForTraining = approveForTrainingCheckbox.checked;
-
                 try {
                     submitCorrectionBtn.disabled = true;
                     submitCorrectionBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
@@ -1058,7 +1131,7 @@
                             page: currentWordData.page,
                             word_index: currentWordData.wordIndex,
                             corrected_text: correctedText,
-                            approve_for_training: approveForTraining
+                            approve_for_training: true
                         })
                     });
 
@@ -1076,14 +1149,15 @@
                             wordElement.classList.add('word-corrected');
                             wordElement.innerHTML = correctedText + ' <span class="badge bg-success">✓</span>';
                             wordElement.removeAttribute('data-bs-toggle');
+                            wordElement.removeEventListener('click', openCorrectionModal);
                             wordElement.style.cursor = 'default';
                             wordElement.style.background = '#c6f6d5';
+                            wordElement.style.border = 'none';
                         }
 
-                        // Close modal
+                        // Close modal and reset
                         correctionModal.classList.add('hidden');
                         currentWordData = null;
-                        alert('Correction submitted successfully!');
                     } else {
                         alert(`Error: ${data.error || 'Failed to submit correction'}`);
                     }

@@ -6,6 +6,7 @@ from pdf2image import convert_from_path
 import io
 import uuid
 import os
+import hashlib
 from datetime import datetime
 from src.config import Config
 from src.aws_service import AWSService
@@ -22,21 +23,76 @@ class OCRProcessor:
         self.confidence_threshold = Config.CONFIDENCE_THRESHOLD
         self.tesseract_lang = language or Config.TESSERACT_LANG
 
+    def _calculate_image_hash(self, image_array):
+        """Calculate SHA256 hash of an image array"""
+        # Convert to bytes and hash
+        image_bytes = image_array.tobytes()
+        return hashlib.sha256(image_bytes).hexdigest()
+
+    def _check_word_cache(self, image_hash):
+        """Check if a word with this image hash has been processed before"""
+        try:
+            table = self.aws_service.dynamodb.Table(Config.DYNAMODB_TABLE)
+
+            # Query using GSI-ImageHash to find existing word by image hash
+            response = table.query(
+                IndexName='GSI-ImageHash',
+                KeyConditionExpression='image_hash = :hash',
+                ExpressionAttributeValues={
+                    ':hash': image_hash
+                },
+                Limit=1
+            )
+
+            if response.get('Items'):
+                item = response['Items'][0]
+                # Return cached data with preference for corrected text
+                return {
+                    'text': item.get('corrected_text', item.get('original_text')),
+                    'original_text': item.get('original_text'),
+                    'confidence': item.get('confidence'),
+                    'is_corrected': item.get('is_corrected') == 'true',
+                    'cached': True,
+                    'source_file_id': item.get('file_id'),
+                    'source_page': item.get('page'),
+                    'source_word_index': item.get('word_index')
+                }
+
+            return None
+        except Exception as e:
+            logger.error(f"Error checking word cache: {e}")
+            return None
+
     def process_file(self, file_path, file_id):
         """Process a file (image or PDF) and yield results page by page"""
         file_extension = os.path.splitext(file_path)[1].lower()
 
+        # First, send total page count for progress tracking
         if file_extension == '.pdf':
+            try:
+                from pdf2image import pdfinfo_from_path
+                info = pdfinfo_from_path(file_path)
+                total_pages = info.get('Pages', 1)
+            except:
+                # Fallback: convert to count pages
+                try:
+                    images = convert_from_path(file_path)
+                    total_pages = len(images)
+                except:
+                    total_pages = 1
+
+            yield {"total_pages": total_pages, "type": "metadata"}
             yield from self._process_pdf(file_path, file_id)
         else:
+            yield {"total_pages": 1, "type": "metadata"}
             yield from self._process_image(file_path, file_id, page_num=1)
 
     def _process_pdf(self, pdf_path, file_id):
         """Process PDF page by page"""
-        page_num = 0  # Initialize page_num to avoid unbound variable error
+        page_num = 1  # Initialize page_num to avoid unbound variable error
         try:
             images = convert_from_path(pdf_path)
-            for page_num, image in enumerate(images, start=0):
+            for page_num, image in enumerate(images, start=1):
                 yield from self._process_image_object(image, file_id, page_num)
         except Exception as e:
             logger.error(f"Error processing PDF: {e}")
@@ -72,6 +128,22 @@ class OCRProcessor:
             word_upload_futures = []
             char_upload_futures = []
 
+            # First pass: check if page is blank by counting meaningful text
+            meaningful_chars = 0
+            for i in range(len(ocr_data['text'])):
+                text = ocr_data['text'][i].strip()
+                conf = float(ocr_data['conf'][i])
+                # Only count characters with reasonable confidence
+                if text and conf > 30:
+                    meaningful_chars += len(text)
+
+            # If page has less than 5 meaningful characters, consider it blank
+            if meaningful_chars < 5:
+                page_data["is_blank"] = True
+                page_data["full_text"] = ""
+                yield page_data
+                return
+
             # Process word by word
             word_index = 0  # Track actual word index (excluding empty strings)
             for i in range(len(ocr_data['text'])):
@@ -85,15 +157,34 @@ class OCRProcessor:
                 # Extract word image
                 word_image = image_cv[y:y+h, x:x+w]
 
-                word_data = {
-                    "text": text,
-                    "confidence": conf,
-                    "bbox": {"x": x, "y": y, "width": w, "height": h},
-                    "word_index": word_index  # Add word_index to word_data
-                }
+                # Calculate image hash for caching
+                image_hash = self._calculate_image_hash(word_image)
 
-                # If confidence is below threshold, store image and prepare for upload
-                if conf < self.confidence_threshold:
+                # Check cache first
+                cached_result = self._check_word_cache(image_hash)
+
+                if cached_result:
+                    # Use cached result
+                    word_data = {
+                        "text": cached_result['text'],
+                        "confidence": cached_result['confidence'],
+                        "bbox": {"x": x, "y": y, "width": w, "height": h},
+                        "word_index": word_index,
+                        "cached": True,
+                        "is_corrected": cached_result['is_corrected']
+                    }
+                else:
+                    # No cache hit, use Tesseract result
+                    word_data = {
+                        "text": text,
+                        "confidence": conf,
+                        "bbox": {"x": x, "y": y, "width": w, "height": h},
+                        "word_index": word_index,
+                        "cached": False
+                    }
+
+                # If confidence is below threshold and not cached, store image and prepare for upload
+                if not cached_result and conf < self.confidence_threshold:
                     word_filename = f"{file_id}/page_{page_num}/word_{uuid.uuid4().hex}.png"
 
                     # Convert word image to bytes
@@ -126,27 +217,29 @@ class OCRProcessor:
                     "file_id": file_id,
                     "page#word_index": f"{page_num:04d}#{word_index:04d}",
                     "word_id": str(uuid.uuid4()),
-                    "original_text": text,
-                    "confidence": conf,  # Store as number for GSI sorting
+                    "original_text": text if not cached_result else cached_result['original_text'],
+                    "confidence": conf if not cached_result else cached_result['confidence'],  # Store as number for GSI sorting
                     "language": self.tesseract_lang,
                     "detected_script": detect_script(text),
                     "bbox": word_data["bbox"],
                     "page": page_num,
                     "word_index": word_index,
                     "is_low_confidence": "true" if conf < self.confidence_threshold else "false",
-                    "is_corrected": "false",
+                    "is_corrected": "true" if cached_result and cached_result['is_corrected'] else "false",
                     "correction_count": 0,
                     "approved_for_training": False,
                     "correction_verified": False,
                     "created_at": page_data["timestamp"],
                     "updated_at": page_data["timestamp"],
+                    "image_hash": image_hash,  # Store image hash for caching
                 }
 
-                # Only add corrected_text, corrected_at, corrected_by if they exist
-                # (DynamoDB GSI keys cannot be NULL)
+                # If cached result has corrected text, add it
+                if cached_result and cached_result['is_corrected']:
+                    db_item["corrected_text"] = cached_result['text']
 
                 # Add S3 references if word image was stored
-                if conf < self.confidence_threshold and "image_filename" in word_data:
+                if not cached_result and conf < self.confidence_threshold and "image_filename" in word_data:
                     db_item["word_image_s3_key"] = word_data["image_filename"]
 
                     # Add character images if available

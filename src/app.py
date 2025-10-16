@@ -3,6 +3,8 @@ from flask_cors import CORS
 import os
 import uuid
 import json
+import hashlib
+from decimal import Decimal
 from werkzeug.utils import secure_filename
 from src.config import Config
 from src.ocr_processor import OCRProcessor
@@ -32,6 +34,27 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in Config.ALLOWED_EXTENSIONS
 
 
+def convert_decimals(obj):
+    """Recursively convert DynamoDB Decimal types to float for JSON serialization"""
+    if isinstance(obj, list):
+        return [convert_decimals(i) for i in obj]
+    elif isinstance(obj, dict):
+        return {k: convert_decimals(v) for k, v in obj.items()}
+    elif isinstance(obj, Decimal):
+        return float(obj)
+    else:
+        return obj
+
+
+def calculate_file_hash(file_path):
+    """Calculate SHA256 hash of a file"""
+    sha256_hash = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
+    return sha256_hash.hexdigest()
+
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -51,21 +74,59 @@ def upload_file():
         return jsonify({"error": "File type not allowed"}), 400
 
     try:
-        # Generate unique file ID
+        # Generate unique file ID first
         file_id = str(uuid.uuid4())
         filename = secure_filename(file.filename)
         file_extension = os.path.splitext(filename)[1]
         saved_filename = f"{file_id}{file_extension}"
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], saved_filename)
 
-        # Save file
+        # Save file temporarily
         file.save(file_path)
 
+        # Calculate file hash
+        file_hash = calculate_file_hash(file_path)
+
+        # Check if this file has been processed before
+        aws_service = AWSService()
+        table = aws_service.dynamodb.Table(Config.DYNAMODB_TABLE)
+
+        # Query using GSI to find existing file by hash
+        response = table.query(
+            IndexName='GSI-FileHash',
+            KeyConditionExpression='file_hash = :hash',
+            ExpressionAttributeValues={
+                ':hash': file_hash
+            },
+            Limit=1
+        )
+
+        if response.get('Items'):
+            # File has been processed before - get the original file_id
+            existing_item = response['Items'][0]
+            existing_file_id = existing_item['file_id']
+
+            # Remove the newly uploaded file since we don't need it
+            os.remove(file_path)
+
+            return jsonify({
+                "success": True,
+                "file_id": existing_file_id,
+                "filename": filename,
+                "file_extension": file_extension,
+                "cached": True,
+                "message": "File already processed - retrieving cached results"
+            })
+
+        # New file - store the hash in metadata for future lookups
+        # We'll add this to the first word entry
         return jsonify({
             "success": True,
             "file_id": file_id,
             "filename": filename,
             "file_extension": file_extension,
+            "file_hash": file_hash,
+            "cached": False,
             "message": "File uploaded successfully"
         })
 
@@ -98,8 +159,8 @@ def process_file(file_id):
             processor = OCRProcessor(language=language)
 
             for page_result in processor.process_file(file_path, file_id):
-                # Send each page result as it's processed
-                yield f"data: {json.dumps(page_result)}\n\n"
+                # Send each page result as it's processed (convert Decimals for JSON)
+                yield f"data: {json.dumps(convert_decimals(page_result))}\n\n"
 
             # Send completion signal
             yield f"data: {json.dumps({'complete': True})}\n\n"
@@ -172,7 +233,7 @@ def get_page_image(file_id, page_num):
 
 @app.route('/api/correction', methods=['POST'])
 def submit_correction():
-    """Submit a correction for a word"""
+    """Submit a correction for a word - updates cache automatically for all future instances"""
     try:
         data = request.json
 
@@ -191,7 +252,7 @@ def submit_correction():
         # Initialize AWS service
         aws_service = AWSService()
 
-        # Update DynamoDB item
+        # Update DynamoDB item - this automatically updates the cache via image_hash GSI
         table = aws_service.dynamodb.Table(Config.DYNAMODB_TABLE)
 
         response = table.update_item(
@@ -217,10 +278,13 @@ def submit_correction():
             ReturnValues="ALL_NEW"
         )
 
+        updated_item = response.get('Attributes', {})
+
         return jsonify({
             "success": True,
-            "message": "Correction submitted successfully",
-            "updated_item": response.get('Attributes', {})
+            "message": "Correction submitted successfully. Future instances of this word will use the corrected text.",
+            "updated_item": updated_item,
+            "cache_note": "All words with matching image_hash will retrieve this correction automatically"
         })
 
     except Exception as e:
