@@ -269,6 +269,96 @@
             display: none;
         }
 
+        /* Terms Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 25px 30px;
+            border-radius: 20px 20px 0 0;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .modal-body {
+            padding: 30px;
+            color: var(--text-dark);
+            line-height: 1.8;
+        }
+
+        .modal-body h4 {
+            color: var(--primary-color);
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .modal-body ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+
+        .modal-body li {
+            margin: 8px 0;
+        }
+
+        .modal-footer {
+            padding: 20px 30px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 10px;
+        }
+
+        .checkbox-container input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .checkbox-container label {
+            cursor: pointer;
+            font-weight: 500;
+        }
+
         @media (max-width: 768px) {
             .page-result {
                 grid-template-columns: 1fr;
@@ -277,10 +367,78 @@
             .app-title {
                 font-size: 2rem;
             }
+
+            .modal-content {
+                max-height: 90vh;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- Terms and Conditions Modal -->
+    <div id="termsModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-file-contract"></i> Terms and Conditions</h3>
+            </div>
+            <div class="modal-body">
+                <p><strong>Please read these terms carefully before using Drishti OCR.</strong></p>
+
+                <h4>1. OCR Technology</h4>
+                <p>Drishti uses <strong>Tesseract OCR</strong> (open-source) out of the box for optical character recognition. The accuracy of text extraction depends on:</p>
+                <ul>
+                    <li>Image quality and resolution</li>
+                    <li>Font clarity and size</li>
+                    <li>Document language and script</li>
+                    <li>Presence of noise or distortions</li>
+                </ul>
+
+                <h4>2. Data Collection and Usage</h4>
+                <p>By using this service, you explicitly consent to the following:</p>
+                <ul>
+                    <li>We collect and store the <strong>raw text extracted</strong> from your uploaded documents</li>
+                    <li>We may <strong>process, analyze, and use this data</strong> for service improvement, research, and development purposes</li>
+                    <li>Uploaded documents and extracted text may be <strong>stored indefinitely</strong></li>
+                    <li>We reserve the right to <strong>use the collected data as we deem necessary</strong>, including but not limited to:
+                        <ul>
+                            <li>Training and improving OCR models</li>
+                            <li>Analytics and research</li>
+                            <li>Quality assurance and testing</li>
+                        </ul>
+                    </li>
+                </ul>
+
+                <h4>3. User Responsibilities</h4>
+                <p>You agree that:</p>
+                <ul>
+                    <li>You will <strong>not upload sensitive, confidential, or personal information</strong> that you do not wish to be stored and processed</li>
+                    <li>You have the <strong>legal right to upload and process</strong> the documents you submit</li>
+                    <li>You understand that this is a <strong>research/development tool</strong> and not intended for production use with sensitive data</li>
+                </ul>
+
+                <h4>4. No Warranty</h4>
+                <p>This service is provided "as is" without any warranties. We do not guarantee:</p>
+                <ul>
+                    <li>Accuracy of OCR results</li>
+                    <li>Availability or uptime of the service</li>
+                    <li>Data security or privacy beyond AWS standard protections</li>
+                </ul>
+
+                <div class="checkbox-container">
+                    <input type="checkbox" id="acceptTerms">
+                    <label for="acceptTerms">I have read and agree to these Terms and Conditions</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="declineBtn" class="btn btn-modern btn-secondary-modern">
+                    Decline
+                </button>
+                <button id="acceptBtn" class="btn btn-modern btn-primary-modern" disabled>
+                    Accept & Continue
+                </button>
+            </div>
+        </div>
+    </div>
     <div class="main-container">
         <div class="header-card">
             <div class="app-title">
@@ -380,7 +538,37 @@
         const progressBar = document.getElementById('progressBar');
         const progressText = document.getElementById('progressText');
 
+        // Terms and Conditions Modal
+        const termsModal = document.getElementById('termsModal');
+        const acceptTermsCheckbox = document.getElementById('acceptTerms');
+        const acceptBtn = document.getElementById('acceptBtn');
+        const declineBtn = document.getElementById('declineBtn');
+
         let selectedFile = null;
+        let termsAccepted = false;
+
+        // Check if user has already accepted terms
+        if (localStorage.getItem('termsAccepted') === 'true') {
+            termsAccepted = true;
+            termsModal.classList.add('hidden');
+        }
+
+        // Enable/disable accept button based on checkbox
+        acceptTermsCheckbox.addEventListener('change', (e) => {
+            acceptBtn.disabled = !e.target.checked;
+        });
+
+        // Accept terms
+        acceptBtn.addEventListener('click', () => {
+            termsAccepted = true;
+            localStorage.setItem('termsAccepted', 'true');
+            termsModal.classList.add('hidden');
+        });
+
+        // Decline terms
+        declineBtn.addEventListener('click', () => {
+            alert('You must accept the Terms and Conditions to use this service.');
+        });
 
         // Click to select file
         uploadZone.addEventListener('click', () => fileInput.click());
@@ -425,6 +613,13 @@
         // Upload and process
         uploadBtn.addEventListener('click', async () => {
             if (!selectedFile) return;
+
+            // Check if terms are accepted
+            if (!termsAccepted) {
+                alert('Please accept the Terms and Conditions to continue.');
+                termsModal.classList.remove('hidden');
+                return;
+            }
 
             // Get selected language
             const selectedLanguage = document.getElementById('languageSelect').value;
