@@ -1,6 +1,6 @@
 FROM public.ecr.aws/lambda/python:3.11
 
-# Install build dependencies
+# Install build dependencies AND runtime libraries
 RUN yum update -y && \
     yum install -y \
     autoconf \
@@ -11,6 +11,12 @@ RUN yum update -y && \
     libjpeg-devel \
     libtiff-devel \
     zlib-devel \
+    libpng \
+    libjpeg \
+    libtiff \
+    zlib \
+    libstdc++ \
+    libgomp \
     poppler-utils \
     wget \
     gcc \
@@ -43,6 +49,11 @@ RUN cd /tmp && \
 # Add tesseract to PATH and set library paths
 ENV PATH="/opt/bin:${PATH}"
 ENV LD_LIBRARY_PATH="/opt/lib:${LD_LIBRARY_PATH}"
+
+# Verify tesseract installation and check library dependencies
+RUN echo "Checking tesseract binary..." && \
+    ldd /opt/bin/tesseract || echo "ldd failed or not available" && \
+    /opt/bin/tesseract --version || echo "Tesseract version check failed"
 
 # Download Indic language data
 RUN mkdir -p /opt/share/tessdata && \
