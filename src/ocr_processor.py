@@ -30,7 +30,7 @@ except Exception as e:
     logger.error(f"'which tesseract' failed: {e}")
 
 # Check if common paths exist
-common_paths = ['/opt/bin/tesseract', '/usr/bin/tesseract', '/usr/local/bin/tesseract', '/bin/tesseract']
+common_paths = ['/usr/bin/tesseract', '/opt/bin/tesseract', '/usr/local/bin/tesseract', '/bin/tesseract']
 for path in common_paths:
     exists = os.path.exists(path)
     logger.error(f"Path check: {path} exists={exists}")
@@ -42,7 +42,7 @@ for path in common_paths:
             logger.error(f"Cannot run tesseract at {path}: {e}")
 
 # Set Tesseract path - check common locations
-tesseract_paths = ['/opt/bin/tesseract', '/usr/bin/tesseract', '/usr/local/bin/tesseract', '/bin/tesseract']
+tesseract_paths = ['/usr/bin/tesseract', '/opt/bin/tesseract', '/usr/local/bin/tesseract', '/bin/tesseract']
 for path in tesseract_paths:
     if os.path.exists(path):
         pytesseract.pytesseract.tesseract_cmd = path

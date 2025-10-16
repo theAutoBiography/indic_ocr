@@ -434,7 +434,7 @@ def health():
     }
 
     # Check common tesseract paths
-    common_paths = ['/opt/bin/tesseract', '/usr/bin/tesseract', '/usr/local/bin/tesseract', '/bin/tesseract']
+    common_paths = ['/usr/bin/tesseract', '/opt/bin/tesseract', '/usr/local/bin/tesseract', '/bin/tesseract']
     for path in common_paths:
         exists = os.path.exists(path)
         debug_info["tesseract"]["paths_checked"][path] = exists
