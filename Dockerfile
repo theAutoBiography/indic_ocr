@@ -26,9 +26,10 @@ RUN pip install --no-cache-dir Flask==3.0.0 \
     "numpy>=1.26.3" \
     python-dotenv==1.0.0
 
-# Download Indic language data
+# Download language data (English + Indic languages)
 RUN mkdir -p /usr/share/tesseract-ocr/4.00/tessdata && \
     cd /usr/share/tesseract-ocr/4.00/tessdata && \
+    wget -q https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata && \
     wget -q https://github.com/tesseract-ocr/tessdata/raw/main/san.traineddata || true && \
     wget -q https://github.com/tesseract-ocr/tessdata/raw/main/hin.traineddata || true && \
     wget -q https://github.com/tesseract-ocr/tessdata/raw/main/tam.traineddata || true && \
