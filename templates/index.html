@@ -670,7 +670,8 @@
                 progressText.textContent = 'Processing document...';
 
                 // Process file with Server-Sent Events and language parameter
-                const eventSource = new EventSource(`/process/${fileId}?lang=${selectedLanguage}`);
+                // URL encode the language to preserve + signs
+                const eventSource = new EventSource(`/process/${fileId}?lang=${encodeURIComponent(selectedLanguage)}`);
                 let pageCount = 0;
 
                 eventSource.onmessage = (event) => {
