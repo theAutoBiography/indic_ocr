@@ -7,6 +7,8 @@ RUN yum update -y && \
     tesseract-langpack-eng \
     poppler-utils \
     wget \
+    gcc \
+    gcc-c++ \
     && yum clean all
 
 # Create tessdata directory if it doesn't exist and install Indic language data
