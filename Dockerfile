@@ -1,19 +1,32 @@
 FROM public.ecr.aws/lambda/python:3.11
 
-# Install system dependencies for Tesseract and OpenCV
+# Install basic dependencies
 RUN yum update -y && \
     yum install -y \
-    tesseract \
-    tesseract-langpack-eng \
     poppler-utils \
     wget \
     gcc \
     gcc-c++ \
+    tar \
+    xz \
+    unzip \
     && yum clean all
 
+# Install Tesseract from pre-built binary
+# Using amazonlinux-tesseract layer approach - install directly in the image
+RUN cd /tmp && \
+    wget https://github.com/bweigel/aws-lambda-tesseract-layer/releases/download/v5.3.3/tesseract-v5.3.3-layer.zip && \
+    unzip tesseract-v5.3.3-layer.zip -d /opt && \
+    rm tesseract-v5.3.3-layer.zip && \
+    chmod +x /opt/bin/tesseract
+
+# Add tesseract to PATH
+ENV PATH="/opt/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/opt/lib:${LD_LIBRARY_PATH}"
+
 # Create tessdata directory if it doesn't exist and install Indic language data
-RUN mkdir -p /usr/share/tesseract/tessdata && \
-    cd /usr/share/tesseract/tessdata && \
+RUN mkdir -p /opt/tessdata && \
+    cd /opt/tessdata && \
     wget -q https://github.com/tesseract-ocr/tessdata/raw/main/san.traineddata || true && \
     wget -q https://github.com/tesseract-ocr/tessdata/raw/main/hin.traineddata || true && \
     wget -q https://github.com/tesseract-ocr/tessdata/raw/main/tam.traineddata || true && \
@@ -21,7 +34,7 @@ RUN mkdir -p /usr/share/tesseract/tessdata && \
     wget -q https://github.com/tesseract-ocr/tessdata/raw/main/tel.traineddata || true
 
 # Set Tesseract data path
-ENV TESSDATA_PREFIX=/usr/share/tesseract/tessdata
+ENV TESSDATA_PREFIX=/opt/tessdata
 
 # Copy requirements file
 COPY requirements.txt ${LAMBDA_TASK_ROOT}/
