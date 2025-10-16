@@ -12,6 +12,7 @@ from src.config import Config
 from src.aws_service import AWSService
 from src.script_utils import detect_script
 import logging
+import gc
 
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
@@ -127,12 +128,50 @@ class OCRProcessor:
             yield from self._process_image(file_path, file_id, page_num=1)
 
     def _process_pdf(self, pdf_path, file_id):
-        """Process PDF page by page"""
+        """Process PDF page by page with memory optimization"""
         page_num = 1  # Initialize page_num to avoid unbound variable error
         try:
-            images = convert_from_path(pdf_path)
-            for page_num, image in enumerate(images, start=1):
-                yield from self._process_image_object(image, file_id, page_num)
+            # Process one page at a time to reduce memory usage
+            from pdf2image import pdfinfo_from_path
+            try:
+                info = pdfinfo_from_path(pdf_path)
+                total_pages = info.get('Pages', 1)
+            except:
+                total_pages = None
+
+            # Process pages one at a time instead of loading all
+            page_num = 1
+            while True:
+                try:
+                    # Convert only one page at a time
+                    images = convert_from_path(
+                        pdf_path,
+                        first_page=page_num,
+                        last_page=page_num,
+                        dpi=200  # Reduce DPI to save memory
+                    )
+
+                    if not images:
+                        break
+
+                    logger.error(f"Processing page {page_num}")
+                    yield from self._process_image_object(images[0], file_id, page_num)
+
+                    # Clean up memory immediately after each page
+                    del images
+                    gc.collect()
+
+                    page_num += 1
+
+                    # Break if we know total pages and reached the end
+                    if total_pages and page_num > total_pages:
+                        break
+
+                except Exception as page_error:
+                    # If we get an error, we've likely reached the end
+                    logger.error(f"Reached end of PDF or error on page {page_num}: {page_error}")
+                    break
+
         except Exception as e:
             logger.error(f"Error processing PDF: {e}")
             yield {"error": str(e), "page": page_num}
@@ -350,6 +389,11 @@ class OCRProcessor:
             # Yield page data to user after S3 uploads and DB save
             page_data["full_text"] = page_data["full_text"].strip()
             yield page_data
+
+            # Clean up memory after processing page
+            del image_cv
+            del ocr_data
+            gc.collect()
 
         except Exception as e:
             logger.error(f"Error in _process_image_object: {e}")

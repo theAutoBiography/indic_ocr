@@ -92,10 +92,20 @@ def upload_file():
         filename = secure_filename(file.filename)
         file_extension = os.path.splitext(filename)[1]
         saved_filename = f"{file_id}{file_extension}"
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], saved_filename)
+
+        # Use /tmp for Lambda (larger space available)
+        if os.environ.get('AWS_EXECUTION_ENV'):
+            upload_folder = '/tmp/uploads'
+            os.makedirs(upload_folder, exist_ok=True)
+        else:
+            upload_folder = app.config['UPLOAD_FOLDER']
+
+        file_path = os.path.join(upload_folder, saved_filename)
 
         # Save file temporarily
+        logger.error(f"Saving file to: {file_path}")
         file.save(file_path)
+        logger.error(f"File saved, size: {os.path.getsize(file_path)} bytes")
 
         # Calculate file hash
         file_hash = calculate_file_hash(file_path)
@@ -157,11 +167,21 @@ def process_file(file_id):
 
     def generate():
         try:
-            # Find the file
+            # Find the file - check /tmp first for Lambda
             file_path = None
-            for filename in os.listdir(app.config['UPLOAD_FOLDER']):
-                if filename.startswith(file_id):
-                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            search_folders = []
+            if os.environ.get('AWS_EXECUTION_ENV'):
+                search_folders.append('/tmp/uploads')
+            search_folders.append(app.config['UPLOAD_FOLDER'])
+
+            for folder in search_folders:
+                if not os.path.exists(folder):
+                    continue
+                for filename in os.listdir(folder):
+                    if filename.startswith(file_id):
+                        file_path = os.path.join(folder, filename)
+                        break
+                if file_path:
                     break
 
             if not file_path or not os.path.exists(file_path):
