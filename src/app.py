@@ -1,0 +1,360 @@
+from flask import Flask, request, render_template, jsonify, Response, send_file
+from flask_cors import CORS
+import os
+import uuid
+import json
+from werkzeug.utils import secure_filename
+from src.config import Config
+from src.ocr_processor import OCRProcessor
+from src.aws_service import AWSService
+from datetime import datetime
+import logging
+
+logging.basicConfig(level=logging.ERROR)
+logger = logging.getLogger(__name__)
+
+# Get the project root directory (parent of src/)
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Initialize Flask with correct template and static paths
+app = Flask(__name__,
+            template_folder=os.path.join(project_root, 'templates'),
+            static_folder=os.path.join(project_root, 'static'))
+app.config.from_object(Config)
+CORS(app)
+
+# Create upload folder if it doesn't exist
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in Config.ALLOWED_EXTENSIONS
+
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+
+    file = request.files['file']
+
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+
+    if not allowed_file(file.filename):
+        return jsonify({"error": "File type not allowed"}), 400
+
+    try:
+        # Generate unique file ID
+        file_id = str(uuid.uuid4())
+        filename = secure_filename(file.filename)
+        file_extension = os.path.splitext(filename)[1]
+        saved_filename = f"{file_id}{file_extension}"
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], saved_filename)
+
+        # Save file
+        file.save(file_path)
+
+        return jsonify({
+            "success": True,
+            "file_id": file_id,
+            "filename": filename,
+            "file_extension": file_extension,
+            "message": "File uploaded successfully"
+        })
+
+    except Exception as e:
+        logger.error(f"Error uploading file: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/process/<file_id>')
+def process_file(file_id):
+    """Process file and stream results page by page using Server-Sent Events"""
+
+    # Get language parameter from query string BEFORE the generator
+    language = request.args.get('lang', Config.TESSERACT_LANG)
+
+    def generate():
+        try:
+            # Find the file
+            file_path = None
+            for filename in os.listdir(app.config['UPLOAD_FOLDER']):
+                if filename.startswith(file_id):
+                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    break
+
+            if not file_path or not os.path.exists(file_path):
+                yield f"data: {json.dumps({'error': 'File not found'})}\n\n"
+                return
+
+            # Process file with specified language
+            processor = OCRProcessor(language=language)
+
+            for page_result in processor.process_file(file_path, file_id):
+                # Send each page result as it's processed
+                yield f"data: {json.dumps(page_result)}\n\n"
+
+            # Send completion signal
+            yield f"data: {json.dumps({'complete': True})}\n\n"
+
+            processor.cleanup()
+
+            # Optionally delete the file after processing
+            # os.remove(file_path)
+
+        except Exception as e:
+            logger.error(f"Error processing file: {e}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+    return Response(generate(), mimetype='text/event-stream')
+
+
+@app.route('/file/<file_id>')
+def get_file(file_id):
+    """Serve the uploaded file"""
+    try:
+        # Find the file
+        for filename in os.listdir(app.config['UPLOAD_FOLDER']):
+            if filename.startswith(file_id):
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                return send_file(file_path)
+
+        return jsonify({"error": "File not found"}), 404
+    except Exception as e:
+        logger.error(f"Error serving file: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/page/<file_id>/<int:page_num>')
+def get_page_image(file_id, page_num):
+    """Get a specific page image from a PDF"""
+    try:
+        from pdf2image import convert_from_path
+        from PIL import Image
+        import io
+
+        # Find the file
+        file_path = None
+        for filename in os.listdir(app.config['UPLOAD_FOLDER']):
+            if filename.startswith(file_id):
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                break
+
+        if not file_path or not os.path.exists(file_path):
+            return jsonify({"error": "File not found"}), 404
+
+        file_extension = os.path.splitext(file_path)[1].lower()
+
+        if file_extension == '.pdf':
+            # Convert specific page to image
+            images = convert_from_path(file_path, first_page=page_num, last_page=page_num)
+            if images:
+                img_io = io.BytesIO()
+                images[0].save(img_io, 'PNG')
+                img_io.seek(0)
+                return send_file(img_io, mimetype='image/png')
+        else:
+            # For images, just return the image
+            return send_file(file_path)
+
+        return jsonify({"error": "Page not found"}), 404
+    except Exception as e:
+        logger.error(f"Error serving page image: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/correction', methods=['POST'])
+def submit_correction():
+    """Submit a correction for a word"""
+    try:
+        data = request.json
+
+        # Validate required fields
+        required_fields = ['file_id', 'page', 'word_index', 'corrected_text']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"Missing required field: {field}"}), 400
+
+        file_id = data['file_id']
+        page = int(data['page'])
+        word_index = int(data['word_index'])
+        corrected_text = data['corrected_text']
+        approve_for_training = data.get('approve_for_training', False)
+
+        # Initialize AWS service
+        aws_service = AWSService()
+
+        # Update DynamoDB item
+        table = aws_service.dynamodb.Table(Config.DYNAMODB_TABLE)
+
+        response = table.update_item(
+            Key={
+                'file_id': file_id,
+                'page#word_index': f"{page:04d}#{word_index:04d}"
+            },
+            UpdateExpression="""
+                SET corrected_text = :text,
+                    is_corrected = :is_corrected,
+                    corrected_at = :timestamp,
+                    updated_at = :timestamp,
+                    approved_for_training = :approved,
+                    correction_count = correction_count + :inc
+            """,
+            ExpressionAttributeValues={
+                ':text': corrected_text,
+                ':is_corrected': 'true',
+                ':timestamp': datetime.utcnow().isoformat(),
+                ':approved': approve_for_training,
+                ':inc': 1
+            },
+            ReturnValues="ALL_NEW"
+        )
+
+        return jsonify({
+            "success": True,
+            "message": "Correction submitted successfully",
+            "updated_item": response.get('Attributes', {})
+        })
+
+    except Exception as e:
+        logger.error(f"Error submitting correction: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/corrections', methods=['GET'])
+def get_corrections():
+    """Get all corrections, optionally filtered by language and confidence"""
+    try:
+        language = request.args.get('language')
+        confidence_lt = request.args.get('confidence_lt', type=float)
+
+        aws_service = AWSService()
+        table = aws_service.dynamodb.Table(Config.DYNAMODB_TABLE)
+
+        # Query GSI-Corrections to get all corrected words
+        response = table.query(
+            IndexName='GSI-Corrections',
+            KeyConditionExpression='is_corrected = :is_corrected',
+            ExpressionAttributeValues={
+                ':is_corrected': 'true'
+            }
+        )
+
+        items = response.get('Items', [])
+
+        # Apply filters
+        if language:
+            items = [item for item in items if item.get('language') == language]
+
+        if confidence_lt is not None:
+            items = [item for item in items if item.get('confidence', 100) < confidence_lt]
+
+        return jsonify({
+            "success": True,
+            "count": len(items),
+            "corrections": items
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting corrections: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/word/<file_id>/<int:page>/<int:word_index>', methods=['GET'])
+def get_word(file_id, page, word_index):
+    """Get complete word data including images"""
+    try:
+        aws_service = AWSService()
+        table = aws_service.dynamodb.Table(Config.DYNAMODB_TABLE)
+
+        # Get word from DynamoDB
+        response = table.get_item(
+            Key={
+                'file_id': file_id,
+                'page#word_index': f"{page:04d}#{word_index:04d}"
+            }
+        )
+
+        if 'Item' not in response:
+            return jsonify({"error": "Word not found"}), 404
+
+        item = response['Item']
+
+        # Generate presigned URLs for images if they exist
+        if 'word_image_s3_key' in item:
+            item['word_image_url'] = aws_service.s3_client.generate_presigned_url(
+                'get_object',
+                Params={
+                    'Bucket': Config.S3_WORD_BUCKET,
+                    'Key': item['word_image_s3_key']
+                },
+                ExpiresIn=3600
+            )
+
+        if 'char_images_s3_keys' in item:
+            item['char_image_urls'] = [
+                aws_service.s3_client.generate_presigned_url(
+                    'get_object',
+                    Params={
+                        'Bucket': Config.S3_CHAR_BUCKET,
+                        'Key': key
+                    },
+                    ExpiresIn=3600
+                )
+                for key in item['char_images_s3_keys']
+            ]
+
+        return jsonify({
+            "success": True,
+            "word": item
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting word: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/low-confidence-words/<file_id>', methods=['GET'])
+def get_low_confidence_words(file_id):
+    """Get all low-confidence words for a file"""
+    try:
+        aws_service = AWSService()
+        table = aws_service.dynamodb.Table(Config.DYNAMODB_TABLE)
+
+        # Query main table by file_id
+        response = table.query(
+            KeyConditionExpression='file_id = :file_id',
+            FilterExpression='is_low_confidence = :is_low',
+            ExpressionAttributeValues={
+                ':file_id': file_id,
+                ':is_low': 'true'
+            }
+        )
+
+        items = response.get('Items', [])
+
+        return jsonify({
+            "success": True,
+            "count": len(items),
+            "words": items
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting low confidence words: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/health')
+def health():
+    return jsonify({"status": "healthy"})
+
+
+if __name__ == '__main__':
+    app.run(debug=True, threaded=True, port=5000)

@@ -5,6 +5,7 @@ __pycache__/
 *.so
 .Python
 venv/
+.venv/
 env/
 ENV/
 build/
@@ -22,10 +23,13 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+pip-log.txt
+pip-delete-this-directory.txt
 
 # Environment
 .env
-.venv
+.env.local
+.env.*.local
 
 # IDEs
 .vscode/
@@ -33,6 +37,7 @@ wheels/
 *.swp
 *.swo
 *~
+.claude/
 
 # OS
 .DS_Store
@@ -50,7 +55,11 @@ logs/
 .pytest_cache/
 .coverage
 htmlcov/
+.tox/
 
 # Flask
 instance/
 .webassets-cache
+
+# AWS
+.aws-sam/

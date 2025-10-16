@@ -28,15 +28,12 @@ COPY requirements.txt ${LAMBDA_TASK_ROOT}/
 RUN pip install --no-cache-dir -r ${LAMBDA_TASK_ROOT}/requirements.txt
 
 # Copy application code
-COPY app.py ${LAMBDA_TASK_ROOT}/
-COPY lambda_handler.py ${LAMBDA_TASK_ROOT}/
-COPY config.py ${LAMBDA_TASK_ROOT}/
-COPY ocr_processor.py ${LAMBDA_TASK_ROOT}/
-COPY aws_service.py ${LAMBDA_TASK_ROOT}/
+COPY src/ ${LAMBDA_TASK_ROOT}/src/
 COPY templates/ ${LAMBDA_TASK_ROOT}/templates/
+COPY .env ${LAMBDA_TASK_ROOT}/.env
 
 # Create upload directory
 RUN mkdir -p ${LAMBDA_TASK_ROOT}/uploads
 
 # Set the Lambda handler
-CMD [ "lambda_handler.handler" ]
+CMD [ "src.lambda_handler.handler" ]

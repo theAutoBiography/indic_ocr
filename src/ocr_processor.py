@@ -7,8 +7,9 @@ import io
 import uuid
 import os
 from datetime import datetime
-from config import Config
-from aws_service import AWSService
+from src.config import Config
+from src.aws_service import AWSService
+from src.script_utils import detect_script
 import logging
 
 logging.basicConfig(level=logging.ERROR)
@@ -71,6 +72,7 @@ class OCRProcessor:
             char_upload_futures = []
 
             # Process word by word
+            word_index = 0  # Track actual word index (excluding empty strings)
             for i in range(len(ocr_data['text'])):
                 text = ocr_data['text'][i].strip()
                 if not text:
@@ -85,7 +87,8 @@ class OCRProcessor:
                 word_data = {
                     "text": text,
                     "confidence": conf,
-                    "bbox": {"x": x, "y": y, "width": w, "height": h}
+                    "bbox": {"x": x, "y": y, "width": w, "height": h},
+                    "word_index": word_index  # Add word_index to word_data
                 }
 
                 # If confidence is below threshold, store image and prepare for upload
@@ -108,7 +111,7 @@ class OCRProcessor:
                     word_data["image_filename"] = word_filename
 
                     # Extract character-level data for low confidence words
-                    char_data = self._extract_characters(word_image, text, file_id, page_num, i)
+                    char_data = self._extract_characters(word_image, text, file_id, page_num, word_index)
                     word_data["characters"] = char_data["characters"]
 
                     # Add character upload futures
@@ -117,22 +120,45 @@ class OCRProcessor:
                 page_data["words"].append(word_data)
                 page_data["full_text"] += text + " "
 
-                # Prepare DynamoDB item
+                # Prepare DynamoDB item with new schema
                 db_item = {
-                    "id": str(uuid.uuid4()),
                     "file_id": file_id,
+                    "page#word_index": f"{page_num:04d}#{word_index:04d}",
+                    "word_id": str(uuid.uuid4()),
+                    "original_text": text,
+                    "confidence": conf,  # Store as number for GSI sorting
+                    "language": self.tesseract_lang,
+                    "detected_script": detect_script(text),
+                    "bbox": word_data["bbox"],
                     "page": page_num,
-                    "word_index": i,
-                    "text": text,
-                    "confidence": str(conf),
-                    "bbox": str(word_data["bbox"]),
-                    "timestamp": page_data["timestamp"]
+                    "word_index": word_index,
+                    "is_low_confidence": "true" if conf < self.confidence_threshold else "false",
+                    "is_corrected": "false",
+                    "correction_count": 0,
+                    "approved_for_training": False,
+                    "correction_verified": False,
+                    "created_at": page_data["timestamp"],
+                    "updated_at": page_data["timestamp"],
                 }
 
+                # Only add corrected_text, corrected_at, corrected_by if they exist
+                # (DynamoDB GSI keys cannot be NULL)
+
+                # Add S3 references if word image was stored
                 if conf < self.confidence_threshold and "image_filename" in word_data:
-                    db_item["word_image_filename"] = word_data["image_filename"]
+                    db_item["word_image_s3_key"] = word_data["image_filename"]
+
+                    # Add character images if available
+                    if "characters" in word_data and word_data["characters"]:
+                        db_item["char_images_s3_keys"] = [
+                            char["image_filename"] for char in word_data["characters"]
+                        ]
+
+                # Add composite sort key for GSI-LowConfidence
+                db_item["file_page_word"] = f"{file_id}#{page_num:04d}#{word_index:04d}"
 
                 db_items.append(db_item)
+                word_index += 1  # Increment word index
 
             # Wait for all S3 uploads to complete
             for future in word_upload_futures + char_upload_futures:

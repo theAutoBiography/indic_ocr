@@ -1,7 +1,8 @@
 import boto3
 import io
-from config import Config
+from src.config import Config
 from concurrent.futures import ThreadPoolExecutor
+from decimal import Decimal
 import logging
 
 logging.basicConfig(level=logging.ERROR)
@@ -51,10 +52,22 @@ class AWSService:
         try:
             with self.table.batch_writer() as batch:
                 for item in items:
-                    batch.put_item(Item=item)
+                    # Convert floats to Decimal for DynamoDB
+                    converted_item = self._convert_floats_to_decimal(item)
+                    batch.put_item(Item=converted_item)
         except Exception as e:
             logger.error(f"Error saving to DynamoDB: {e}")
             raise
+
+    def _convert_floats_to_decimal(self, obj):
+        """Recursively convert float values to Decimal for DynamoDB compatibility"""
+        if isinstance(obj, float):
+            return Decimal(str(obj))
+        elif isinstance(obj, dict):
+            return {k: self._convert_floats_to_decimal(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self._convert_floats_to_decimal(item) for item in obj]
+        return obj
 
     def shutdown(self):
         """Shutdown executor"""

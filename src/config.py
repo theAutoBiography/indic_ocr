@@ -4,9 +4,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Config:
+    # Get project root directory (parent of src/)
+    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
     # Flask config
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
-    UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', './uploads')
+    UPLOAD_FOLDER = os.path.join(PROJECT_ROOT, os.getenv('UPLOAD_FOLDER', 'uploads'))
     MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 104857600))  # 100MB default
 
     # AWS config

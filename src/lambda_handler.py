@@ -1,4 +1,4 @@
-from app import app
+from src.app import app
 from werkzeug.middleware.proxy_fix import ProxyFix
 import base64
 
