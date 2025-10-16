@@ -1,6 +1,8 @@
 from src.app import app
 from werkzeug.middleware.proxy_fix import ProxyFix
-from apig_wsgi import make_lambda_handler
+import base64
+import sys
+from io import BytesIO
 import logging
 
 logger = logging.getLogger(__name__)
@@ -9,10 +11,11 @@ logger.setLevel(logging.ERROR)
 # Apply proxy fix for proper handling behind AWS Lambda
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
-# Use apig_wsgi to handle Lambda events properly with awslambdaric
-handler = make_lambda_handler(app)
-
-def handler_legacy(event, context):
+def handler(event, context):
+    """
+    Handler that supports both buffered and streaming responses.
+    For streaming endpoints (Server-Sent Events), it streams chunks.
+    """
     # Convert Lambda Function URL event to WSGI environ
     headers = event.get('headers', {})
 
@@ -63,37 +66,64 @@ def handler_legacy(event, context):
     response_data = []
     status = None
     response_headers = []
+    is_streaming = False
 
-    def start_response(status_str, headers):
-        nonlocal status, response_headers
+    def start_response(status_str, headers_list):
+        nonlocal status, response_headers, is_streaming
         status = int(status_str.split(' ')[0])
-        response_headers = headers
+        response_headers = headers_list
+
+        # Check if this is a streaming response (SSE)
+        for key, value in headers_list:
+            if key.lower() == 'content-type' and 'text/event-stream' in value.lower():
+                is_streaming = True
+                break
 
     app_iter = app(environ, start_response)
-    try:
-        for data in app_iter:
-            response_data.append(data)
-    finally:
-        if hasattr(app_iter, 'close'):
-            app_iter.close()
-
-    # Build response
-    body_bytes = b''.join(response_data)
 
     # Convert headers to Lambda format
     response_headers_dict = {}
     for key, value in response_headers:
         response_headers_dict[key.lower()] = value
 
-    # Check if binary content
-    is_binary = False
-    content_type = response_headers_dict.get('content-type', '')
-    if 'image' in content_type or 'application/octet-stream' in content_type:
-        is_binary = True
+    # If streaming, use Lambda response streaming
+    if is_streaming and hasattr(context, 'awslambdaric_stream'):
+        # For Lambda response streaming
+        try:
+            # Write headers first
+            metadata = {
+                'statusCode': status,
+                'headers': response_headers_dict
+            }
 
-    return {
-        'statusCode': status,
-        'headers': response_headers_dict,
-        'body': base64.b64encode(body_bytes).decode('utf-8') if is_binary else body_bytes.decode('utf-8', errors='replace'),
-        'isBase64Encoded': is_binary
-    }
+            # Stream chunks
+            for chunk in app_iter:
+                if chunk:
+                    yield chunk
+        finally:
+            if hasattr(app_iter, 'close'):
+                app_iter.close()
+    else:
+        # Buffered response for non-streaming endpoints
+        try:
+            for data in app_iter:
+                response_data.append(data)
+        finally:
+            if hasattr(app_iter, 'close'):
+                app_iter.close()
+
+        # Build response
+        body_bytes = b''.join(response_data)
+
+        # Check if binary content
+        is_binary = False
+        content_type = response_headers_dict.get('content-type', '')
+        if 'image' in content_type or 'application/octet-stream' in content_type:
+            is_binary = True
+
+        return {
+            'statusCode': status,
+            'headers': response_headers_dict,
+            'body': base64.b64encode(body_bytes).decode('utf-8') if is_binary else body_bytes.decode('utf-8', errors='replace'),
+            'isBase64Encoded': is_binary
+        }
