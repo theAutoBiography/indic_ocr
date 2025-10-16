@@ -896,7 +896,12 @@
             }
 
             function updateEstimatedTime(currentPage, totalPages) {
-                if (currentPage === 0) return;
+                if (currentPage === 0) {
+                    // Show initial estimate based on ~60 seconds per page
+                    const estimatedTotal = totalPages * 60;
+                    estimatedTime.textContent = `Est. total: ${formatTime(estimatedTotal)} (~1 min/page)`;
+                    return;
+                }
 
                 const elapsed = (Date.now() - processingStartTime) / 1000;
                 const avgTimePerPage = elapsed / currentPage;
@@ -938,7 +943,7 @@
                 progressBar.style.width = '0%';
                 progressText.textContent = 'Uploading file...';
                 elapsedTime.innerHTML = '<i class="fas fa-clock"></i> Time elapsed: 0s';
-                estimatedTime.textContent = 'Est. remaining: --';
+                estimatedTime.innerHTML = '<i class="fas fa-info-circle"></i> Processing takes ~1 min per page';
 
                 // Start timer
                 startTimer();
@@ -984,6 +989,8 @@
                             totalPages = data.total_pages;
                             progressText.textContent = `Processing ${totalPages} page${totalPages > 1 ? 's' : ''}...`;
                             progressBar.style.width = '30%';
+                            // Show initial time estimate
+                            updateEstimatedTime(0, totalPages);
                             return;
                         }
 
