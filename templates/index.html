@@ -266,7 +266,7 @@
         }
 
         .hidden {
-            display: none;
+            display: none !important;
         }
 
         /* Terms Modal */
@@ -283,6 +283,10 @@
             justify-content: center;
             z-index: 9999;
             padding: 20px;
+        }
+
+        .modal-overlay.hidden {
+            display: none !important;
         }
 
         .modal-content {
