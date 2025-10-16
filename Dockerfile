@@ -45,6 +45,7 @@ COPY templates/ /var/task/templates/
 # Create upload directory
 RUN mkdir -p /var/task/uploads
 
-# Set the entrypoint to use AWS Lambda Runtime Interface Client
-ENTRYPOINT [ "/usr/local/bin/python", "-m", "awslambdaric" ]
-CMD [ "src.lambda_handler.handler" ]
+# Set the handler
+# For Lambda Function URLs, we need to ensure proper invocation
+ENTRYPOINT []
+CMD [ "python", "-m", "awslambdaric", "src.lambda_handler.handler" ]
