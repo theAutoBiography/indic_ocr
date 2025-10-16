@@ -1,21 +1,15 @@
-FROM public.ecr.aws/lambda/python:3.10
+FROM public.ecr.aws/lambda/python:3.11
 
 # Install system dependencies for Tesseract and OpenCV
-# Enable EPEL repo for tesseract on Amazon Linux 2
 RUN yum update -y && \
     yum install -y \
-    amazon-linux-extras \
-    && amazon-linux-extras install epel -y && \
-    yum install -y \
     tesseract \
+    tesseract-langpack-eng \
     poppler-utils \
     wget \
     gcc \
     gcc-c++ \
     && yum clean all
-
-# Verify tesseract installation
-RUN which tesseract && tesseract --version
 
 # Create tessdata directory if it doesn't exist and install Indic language data
 RUN mkdir -p /usr/share/tesseract/tessdata && \
