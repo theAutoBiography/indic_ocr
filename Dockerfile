@@ -26,8 +26,19 @@ ENV TESSDATA_PREFIX=/usr/share/tesseract/tessdata
 # Copy requirements file
 COPY requirements.txt ${LAMBDA_TASK_ROOT}/
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r ${LAMBDA_TASK_ROOT}/requirements.txt
+# Upgrade pip first
+RUN pip install --upgrade pip
+
+# Install Python dependencies one by one to identify failures
+RUN pip install --no-cache-dir Flask==3.0.0
+RUN pip install --no-cache-dir Flask-CORS==4.0.0
+RUN pip install --no-cache-dir "Pillow>=10.2.0"
+RUN pip install --no-cache-dir pytesseract==0.3.10
+RUN pip install --no-cache-dir pdf2image==1.16.3
+RUN pip install --no-cache-dir "boto3>=1.34.24"
+RUN pip install --no-cache-dir "opencv-python-headless>=4.9.0.80"
+RUN pip install --no-cache-dir "numpy>=1.26.3"
+RUN pip install --no-cache-dir python-dotenv==1.0.0
 
 # Copy application code
 COPY src/ ${LAMBDA_TASK_ROOT}/src/
