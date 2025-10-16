@@ -10,8 +10,8 @@ RUN apt-get update && \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install AWS Lambda Runtime Interface Client for Python
-RUN pip install --no-cache-dir awslambdaric
+# Install production WSGI server
+RUN pip install --no-cache-dir gunicorn==21.2.0
 
 # Copy requirements and install Python dependencies
 WORKDIR /var/task
@@ -45,7 +45,8 @@ COPY templates/ /var/task/templates/
 # Create upload directory
 RUN mkdir -p /var/task/uploads
 
-# Set the handler
-# For Lambda Function URLs, we need to ensure proper invocation
-ENTRYPOINT []
-CMD [ "python", "-m", "awslambdaric", "src.lambda_handler.handler" ]
+# Expose port 8080 for ECS
+EXPOSE 8080
+
+# Run with gunicorn for production
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--timeout", "900", "--access-logfile", "-", "--error-logfile", "-", "src.app:app"]
