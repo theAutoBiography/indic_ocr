@@ -10,17 +10,14 @@ RUN yum install -y \
     make \
     && yum clean all
 
-# Install additional development libraries
+# Install development libraries (only ones that exist in AL2)
 RUN yum install -y \
-    cmake3 \
     libffi-devel \
     openssl-devel \
-    libjpeg-turbo-devel \
-    libpng-devel \
     && yum clean all
 
 # Install poppler-utils for PDF support
-RUN yum install -y poppler-utils && yum clean all
+RUN yum install -y poppler-utils || yum install -y poppler && yum clean all
 
 # Install Tesseract from EPEL (Amazon Linux 2)
 RUN amazon-linux-extras install epel -y && \
