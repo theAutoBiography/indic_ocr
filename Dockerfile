@@ -9,9 +9,7 @@ RUN yum update -y && \
     wget \
     gcc \
     gcc-c++ \
-    && yum clean all && \
-    tesseract --version && \
-    which tesseract
+    && yum clean all
 
 # Create tessdata directory if it doesn't exist and install Indic language data
 RUN mkdir -p /usr/share/tesseract/tessdata && \
