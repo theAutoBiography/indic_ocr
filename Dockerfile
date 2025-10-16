@@ -9,10 +9,11 @@ RUN yum update -y && \
     wget \
     && yum clean all
 
-# Install additional Tesseract language data for Sanskrit and Hindi
-RUN cd /usr/share/tesseract/tessdata && \
-    wget -q https://github.com/tesseract-ocr/tessdata/raw/main/san.traineddata && \
-    wget -q https://github.com/tesseract-ocr/tessdata/raw/main/hin.traineddata
+# Create tessdata directory if it doesn't exist and install Sanskrit and Hindi language data
+RUN mkdir -p /usr/share/tesseract/tessdata && \
+    cd /usr/share/tesseract/tessdata && \
+    wget -q https://github.com/tesseract-ocr/tessdata/raw/main/san.traineddata || true && \
+    wget -q https://github.com/tesseract-ocr/tessdata/raw/main/hin.traineddata || true
 
 # Set Tesseract data path
 ENV TESSDATA_PREFIX=/usr/share/tesseract/tessdata
