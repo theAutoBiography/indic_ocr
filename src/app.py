@@ -93,8 +93,8 @@ def upload_file():
         file_extension = os.path.splitext(filename)[1]
         saved_filename = f"{file_id}{file_extension}"
 
-        # Use /tmp for Lambda (larger space available)
-        if os.environ.get('AWS_EXECUTION_ENV'):
+        # Use /tmp for Lambda/ECS (larger space available)
+        if os.environ.get('AWS_EXECUTION_ENV') or os.environ.get('ECS_CONTAINER_METADATA_URI'):
             upload_folder = '/tmp/uploads'
             os.makedirs(upload_folder, exist_ok=True)
         else:
@@ -167,12 +167,14 @@ def process_file(file_id):
 
     def generate():
         try:
-            # Find the file - check /tmp first for Lambda
+            # Find the file - check /tmp first for Lambda/ECS
             file_path = None
             search_folders = []
-            if os.environ.get('AWS_EXECUTION_ENV'):
+            if os.environ.get('AWS_EXECUTION_ENV') or os.environ.get('ECS_CONTAINER_METADATA_URI'):
                 search_folders.append('/tmp/uploads')
             search_folders.append(app.config['UPLOAD_FOLDER'])
+
+            logger.error(f"Searching for file {file_id} in folders: {search_folders}")
 
             for folder in search_folders:
                 if not os.path.exists(folder):
