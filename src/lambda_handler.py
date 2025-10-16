@@ -1,6 +1,8 @@
 from src.app import app
 from werkzeug.middleware.proxy_fix import ProxyFix
 import base64
+import sys
+from io import BytesIO
 
 # Apply proxy fix for proper handling behind AWS Lambda
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
@@ -9,9 +11,12 @@ def handler(event, context):
     # Convert Lambda Function URL event to WSGI environ
     headers = event.get('headers', {})
 
+    # Get the HTTP method
+    method = event.get('requestContext', {}).get('http', {}).get('method', 'GET')
+
     # Build WSGI environ
     environ = {
-        'REQUEST_METHOD': event.get('requestContext', {}).get('http', {}).get('method', 'GET'),
+        'REQUEST_METHOD': method,
         'SCRIPT_NAME': '',
         'PATH_INFO': event.get('rawPath', '/'),
         'QUERY_STRING': event.get('rawQueryString', ''),
@@ -23,7 +28,7 @@ def handler(event, context):
         'wsgi.version': (1, 0),
         'wsgi.url_scheme': headers.get('x-forwarded-proto', 'https'),
         'wsgi.input': None,
-        'wsgi.errors': None,
+        'wsgi.errors': sys.stderr,
         'wsgi.multithread': False,
         'wsgi.multiprocess': False,
         'wsgi.run_once': False,
@@ -35,14 +40,17 @@ def handler(event, context):
         if key not in ('CONTENT_TYPE', 'CONTENT_LENGTH'):
             environ[f'HTTP_{key}'] = value
 
-    # Handle body
+    # Handle body - properly decode base64 for file uploads
     body = event.get('body', '')
-    if event.get('isBase64Encoded', False):
-        body = base64.b64decode(body)
-    elif isinstance(body, str):
-        body = body.encode('utf-8')
+    if body:
+        if event.get('isBase64Encoded', False):
+            # For file uploads (multipart/form-data), the body is base64 encoded
+            body = base64.b64decode(body)
+        elif isinstance(body, str):
+            body = body.encode('utf-8')
+    else:
+        body = b''
 
-    from io import BytesIO
     environ['wsgi.input'] = BytesIO(body)
     environ['CONTENT_LENGTH'] = str(len(body))
 
