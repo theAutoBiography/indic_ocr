@@ -1,37 +1,53 @@
-# Stage 1: Get Tesseract from Ubuntu
-FROM ubuntu:20.04 AS tesseract-build
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    tesseract-ocr \
-    libtesseract-dev && \
-    rm -rf /var/lib/apt/lists/*
-
-# Stage 2: Lambda runtime with Tesseract
 FROM public.ecr.aws/lambda/python:3.11
 
-# Install basic dependencies
+# Install build dependencies
 RUN yum update -y && \
     yum install -y \
+    autoconf \
+    automake \
+    libtool \
+    pkgconfig \
+    libpng-devel \
+    libjpeg-devel \
+    libtiff-devel \
+    zlib-devel \
     poppler-utils \
     wget \
     gcc \
     gcc-c++ \
     && yum clean all
 
-# Copy tesseract binaries and libraries from Ubuntu build
-COPY --from=tesseract-build /usr/bin/tesseract /opt/bin/tesseract
-COPY --from=tesseract-build /usr/lib/x86_64-linux-gnu/libtesseract.so* /opt/lib/
-COPY --from=tesseract-build /usr/lib/x86_64-linux-gnu/liblept.so* /opt/lib/
-COPY --from=tesseract-build /usr/lib/x86_64-linux-gnu/libgomp.so* /opt/lib/
-COPY --from=tesseract-build /usr/share/tesseract-ocr /opt/share/tesseract-ocr
+# Build and install Leptonica (required by Tesseract)
+RUN cd /tmp && \
+    wget https://github.com/DanBloomberg/leptonica/releases/download/1.84.1/leptonica-1.84.1.tar.gz && \
+    tar -xzf leptonica-1.84.1.tar.gz && \
+    cd leptonica-1.84.1 && \
+    ./configure --prefix=/opt && \
+    make -j$(nproc) && \
+    make install && \
+    cd / && \
+    rm -rf /tmp/leptonica-1.84.1*
 
-# Add tesseract to PATH and set library path
+# Build and install Tesseract
+RUN cd /tmp && \
+    wget https://github.com/tesseract-ocr/tesseract/archive/refs/tags/5.3.3.tar.gz && \
+    tar -xzf 5.3.3.tar.gz && \
+    cd tesseract-5.3.3 && \
+    ./autogen.sh && \
+    PKG_CONFIG_PATH=/opt/lib/pkgconfig ./configure --prefix=/opt LDFLAGS="-L/opt/lib" CFLAGS="-I/opt/include" && \
+    make -j$(nproc) && \
+    make install && \
+    cd / && \
+    rm -rf /tmp/tesseract-5.3.3 /tmp/5.3.3.tar.gz
+
+# Add tesseract to PATH and set library paths
 ENV PATH="/opt/bin:${PATH}"
 ENV LD_LIBRARY_PATH="/opt/lib:${LD_LIBRARY_PATH}"
 
 # Download Indic language data
-RUN mkdir -p /opt/share/tesseract-ocr/4.00/tessdata && \
-    cd /opt/share/tesseract-ocr/4.00/tessdata && \
+RUN mkdir -p /opt/share/tessdata && \
+    cd /opt/share/tessdata && \
+    wget -q https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata && \
     wget -q https://github.com/tesseract-ocr/tessdata/raw/main/san.traineddata || true && \
     wget -q https://github.com/tesseract-ocr/tessdata/raw/main/hin.traineddata || true && \
     wget -q https://github.com/tesseract-ocr/tessdata/raw/main/tam.traineddata || true && \
@@ -39,7 +55,7 @@ RUN mkdir -p /opt/share/tesseract-ocr/4.00/tessdata && \
     wget -q https://github.com/tesseract-ocr/tessdata/raw/main/tel.traineddata || true
 
 # Set Tesseract data path
-ENV TESSDATA_PREFIX=/opt/share/tesseract-ocr/4.00/tessdata
+ENV TESSDATA_PREFIX=/opt/share/tessdata
 
 # Copy requirements file
 COPY requirements.txt ${LAMBDA_TASK_ROOT}/
