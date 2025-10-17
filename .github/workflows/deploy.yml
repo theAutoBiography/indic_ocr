@@ -1,4 +1,4 @@
-name: Deploy to AWS Lambda
+name: Deploy to AWS ECS
 
 on:
   push:
@@ -10,15 +10,16 @@ on:
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: drishti-ocr
-  LAMBDA_FUNCTION_NAME: DrishtiOCR
+  ECS_CLUSTER: drishti-ocr-cluster
+  ECS_SERVICE: drishti-ocr-service
 
 jobs:
   deploy:
-    name: Build and Deploy
+    name: Build and Deploy to ECS
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout source code
         uses: actions/checkout@v4
 
       - name: Configure AWS credentials
@@ -32,47 +33,60 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build, tag, and push image to Amazon ECR
+      - name: Build Docker image
         id: build-image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
+          echo "Building Docker image..."
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      - name: Deploy to Lambda
+      - name: Push Docker image to ECR
         env:
-          IMAGE_URI: ${{ steps.build-image.outputs.image }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          aws lambda update-function-code \
-            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
-            --image-uri $IMAGE_URI \
+          echo "Pushing image to Amazon ECR..."
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: Deploy to ECS Fargate
+        run: |
+          echo "Triggering ECS service deployment..."
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE }} \
+            --force-new-deployment \
             --region ${{ env.AWS_REGION }}
 
-          # Wait for the update to complete
-          aws lambda wait function-updated \
-            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+      - name: Wait for ECS deployment to complete
+        run: |
+          echo "Waiting for deployment to stabilize..."
+          aws ecs wait services-stable \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ env.ECS_SERVICE }} \
             --region ${{ env.AWS_REGION }}
 
-      - name: Get Function URL
-        id: function-url
+      - name: Get load balancer URL
+        id: get-url
         run: |
-          FUNCTION_URL=$(aws lambda get-function-url-config \
-            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+          ALB_DNS=$(aws elbv2 describe-load-balancers \
+            --names drishti-ocr-alb \
             --region ${{ env.AWS_REGION }} \
-            --query 'FunctionUrl' \
+            --query 'LoadBalancers[0].DNSName' \
             --output text 2>/dev/null || echo "Not configured")
-          echo "url=$FUNCTION_URL" >> $GITHUB_OUTPUT
+          echo "url=http://$ALB_DNS" >> $GITHUB_OUTPUT
 
-      - name: Deployment Summary
+      - name: Deployment summary
         run: |
-          echo "## Deployment Successful! :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 Deployment Successful!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Function:** ${{ env.LAMBDA_FUNCTION_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "**ECS Cluster:** ${{ env.ECS_CLUSTER }}" >> $GITHUB_STEP_SUMMARY
+          echo "**ECS Service:** ${{ env.ECS_SERVICE }}" >> $GITHUB_STEP_SUMMARY
           echo "**Region:** ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
           echo "**Image:** ${{ steps.build-image.outputs.image }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Function URL:** ${{ steps.function-url.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** ${{ steps.get-url.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Domain:** https://drishtiocr.in" >> $GITHUB_STEP_SUMMARY
