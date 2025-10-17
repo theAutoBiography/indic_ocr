@@ -51,10 +51,9 @@ ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata
 # Copy application code
 COPY src/ /var/task/src/
 COPY templates/ /var/task/templates/
-COPY static/ /var/task/static/
 
-# Create upload directory
-RUN mkdir -p /var/task/uploads
+# Create required directories
+RUN mkdir -p /var/task/uploads /var/task/static
 
 # Expose port 8080 for ECS
 EXPOSE 8080
