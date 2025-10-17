@@ -63,3 +63,4 @@ instance/
 
 # AWS
 .aws-sam/
+.claude/

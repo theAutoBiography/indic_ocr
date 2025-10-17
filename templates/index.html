@@ -689,18 +689,41 @@
                 </label>
                 <select id="languageSelect" class="language-select">
                     <option value="san+eng+hin">Devanagari + English (Default)</option>
-                    <option value="san">Devanagari (संस्कृतम्)</option>
-                    <option value="hin">Devanagari (हिन्दी)</option>
-                    <option value="tam">Tamil (தமிழ்)</option>
-                    <option value="kan">Kannada (ಕನ್ನಡ)</option>
-                    <option value="tel">Telugu (తెలుగు)</option>
-                    <option value="eng">English</option>
-                    <option value="san+eng">Sanskrit + English</option>
-                    <option value="san+hin">Sanskrit + Hindi</option>
-                    <option value="eng+hin">English + Hindi</option>
-                    <option value="tam+eng">Tamil + English</option>
-                    <option value="kan+eng">Kannada + English</option>
-                    <option value="tel+eng">Telugu + English</option>
+
+                    <optgroup label="Single Scripts">
+                        <option value="san">Sanskrit (संस्कृतम्)</option>
+                        <option value="tam">Tamil (தமிழ்)</option>
+                        <option value="ben">Bengali (বাংলা)</option>
+                        <option value="guj">Gujarati (ગુજરાતી)</option>
+                        <option value="hin">Hindi (हिन्दी)</option>
+                        <option value="kan">Kannada (ಕನ್ನಡ)</option>
+                        <option value="mal">Malayalam (മലയാളം)</option>
+                        <option value="mar">Marathi (मराठी)</option>
+                        <option value="asm">Assamese (অসমীয়া)</option>
+                        <option value="nep">Nepali (नेपाली)</option>
+                        <option value="ori">Odia (ଓଡ଼ିଆ)</option>
+                        <option value="pan">Punjabi (ਪੰਜਾਬੀ)</option>
+                        <option value="tel">Telugu (తెలుగు)</option>
+                        <option value="eng">English</option>
+                    </optgroup>
+
+                    <optgroup label="Combination of Scripts">
+                        <option value="san+hin">Sanskrit + Hindi</option>
+                        <option value="san+eng">Sanskrit + English</option>
+                        <option value="hin+eng">Hindi + English</option>
+                        <option value="mar+eng">Marathi + English</option>
+                        <option value="nep+eng">Nepali + English</option>
+                        <option value="tam+eng">Tamil + English</option>
+                        <option value="tel+eng">Telugu + English</option>
+                        <option value="kan+eng">Kannada + English</option>
+                        <option value="mal+eng">Malayalam + English</option>
+                        <option value="ben+eng">Bengali + English</option>
+                        <option value="guj+eng">Gujarati + English</option>
+                        <option value="pan+eng">Punjabi + English</option>
+                        <option value="ori+eng">Odia + English</option>
+                        <option value="asm+eng">Assamese + English</option>
+                        <option value="urd+eng">Urdu + English</option>
+                    </optgroup>
                 </select>
             </div>
 
@@ -710,7 +733,7 @@
                 </div>
                 <div class="upload-title">Drag & Drop files here</div>
                 <div class="upload-subtitle">or click to browse</div>
-                <div class="upload-subtitle mt-1" style="font-size: 0.8rem;">Images (PNG) or PDF • Max 10MB
+                <div class="upload-subtitle mt-1" style="font-size: 0.8rem;">Images (PNG) or PDF • Max 100MB
                 </div>
                 <input type="file" id="fileInput" class="hidden" accept=".png,.jpg,.jpeg,.pdf,.tiff,.bmp">
             </div>

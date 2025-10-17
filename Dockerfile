@@ -26,7 +26,7 @@ RUN pip install --no-cache-dir Flask==3.0.0 \
     "numpy>=1.26.3" \
     python-dotenv==1.0.0
 
-# Download language data (English + Indic languages)
+# Download language data (English + All Indian languages)
 RUN mkdir -p /usr/share/tesseract-ocr/4.00/tessdata && \
     cd /usr/share/tesseract-ocr/4.00/tessdata && \
     wget -q https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata && \
@@ -34,7 +34,16 @@ RUN mkdir -p /usr/share/tesseract-ocr/4.00/tessdata && \
     wget -q https://github.com/tesseract-ocr/tessdata/raw/main/hin.traineddata || true && \
     wget -q https://github.com/tesseract-ocr/tessdata/raw/main/tam.traineddata || true && \
     wget -q https://github.com/tesseract-ocr/tessdata/raw/main/kan.traineddata || true && \
-    wget -q https://github.com/tesseract-ocr/tessdata/raw/main/tel.traineddata || true
+    wget -q https://github.com/tesseract-ocr/tessdata/raw/main/tel.traineddata || true && \
+    wget -q https://github.com/tesseract-ocr/tessdata/raw/main/mal.traineddata || true && \
+    wget -q https://github.com/tesseract-ocr/tessdata/raw/main/ben.traineddata || true && \
+    wget -q https://github.com/tesseract-ocr/tessdata/raw/main/guj.traineddata || true && \
+    wget -q https://github.com/tesseract-ocr/tessdata/raw/main/mar.traineddata || true && \
+    wget -q https://github.com/tesseract-ocr/tessdata/raw/main/pan.traineddata || true && \
+    wget -q https://github.com/tesseract-ocr/tessdata/raw/main/ori.traineddata || true && \
+    wget -q https://github.com/tesseract-ocr/tessdata/raw/main/asm.traineddata || true && \
+    wget -q https://github.com/tesseract-ocr/tessdata/raw/main/nep.traineddata || true && \
+    wget -q https://github.com/tesseract-ocr/tessdata/raw/main/urd.traineddata || true
 
 # Set environment variables
 ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata
@@ -42,6 +51,7 @@ ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata
 # Copy application code
 COPY src/ /var/task/src/
 COPY templates/ /var/task/templates/
+COPY static/ /var/task/static/
 
 # Create upload directory
 RUN mkdir -p /var/task/uploads
