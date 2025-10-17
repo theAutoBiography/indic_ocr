@@ -17,42 +17,8 @@ import gc
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
-# Debug: Check what's in the environment
-import subprocess
-logger.error(f"Environment check - LAMBDA_TASK_ROOT: {os.environ.get('LAMBDA_TASK_ROOT')}")
-logger.error(f"Environment check - AWS_EXECUTION_ENV: {os.environ.get('AWS_EXECUTION_ENV')}")
-logger.error(f"Environment check - PATH: {os.environ.get('PATH')}")
-
-# Try to find tesseract using 'which'
-try:
-    result = subprocess.run(['which', 'tesseract'], capture_output=True, text=True)
-    logger.error(f"'which tesseract' output: {result.stdout.strip()}, stderr: {result.stderr.strip()}, returncode: {result.returncode}")
-except Exception as e:
-    logger.error(f"'which tesseract' failed: {e}")
-
-# Check if common paths exist
-common_paths = ['/usr/bin/tesseract', '/opt/bin/tesseract', '/usr/local/bin/tesseract', '/bin/tesseract']
-for path in common_paths:
-    exists = os.path.exists(path)
-    logger.error(f"Path check: {path} exists={exists}")
-    if exists:
-        try:
-            result = subprocess.run([path, '--version'], capture_output=True, text=True, timeout=5)
-            logger.error(f"Tesseract version at {path}: {result.stdout[:100]}")
-        except Exception as e:
-            logger.error(f"Cannot run tesseract at {path}: {e}")
-
-# Set Tesseract path - check common locations
-tesseract_paths = ['/usr/bin/tesseract', '/opt/bin/tesseract', '/usr/local/bin/tesseract', '/bin/tesseract']
-for path in tesseract_paths:
-    if os.path.exists(path):
-        pytesseract.pytesseract.tesseract_cmd = path
-        logger.error(f"Setting pytesseract.tesseract_cmd to: {path}")
-        break
-else:
-    # Default to /usr/bin/tesseract
-    pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
-    logger.error(f"Tesseract not found in common paths, defaulting to /usr/bin/tesseract")
+# Set Tesseract path (installed via apt in Docker image)
+pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
 
 
 class OCRProcessor:

@@ -62,29 +62,16 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    try:
-        logger.error(f"Upload endpoint called - Content-Type: {request.content_type}")
-        logger.error(f"Request files: {list(request.files.keys())}")
-        logger.error(f"Request form: {list(request.form.keys())}")
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
 
-        if 'file' not in request.files:
-            logger.error("No 'file' in request.files")
-            return jsonify({"error": "No file part"}), 400
+    file = request.files['file']
 
-        file = request.files['file']
-        logger.error(f"File received: {file.filename}")
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
 
-        if file.filename == '':
-            logger.error("Empty filename")
-            return jsonify({"error": "No selected file"}), 400
-
-        if not allowed_file(file.filename):
-            logger.error(f"File type not allowed: {file.filename}")
-            return jsonify({"error": "File type not allowed"}), 400
-
-    except Exception as e:
-        logger.error(f"Error in upload_file validation: {e}", exc_info=True)
-        return jsonify({"error": f"Upload validation failed: {str(e)}"}), 500
+    if not allowed_file(file.filename):
+        return jsonify({"error": "File type not allowed"}), 400
 
     try:
         # Generate unique file ID first
@@ -93,19 +80,12 @@ def upload_file():
         file_extension = os.path.splitext(filename)[1]
         saved_filename = f"{file_id}{file_extension}"
 
-        # Use /tmp for Lambda/ECS (larger space available)
-        if os.environ.get('AWS_EXECUTION_ENV') or os.environ.get('ECS_CONTAINER_METADATA_URI'):
-            upload_folder = '/tmp/uploads'
-            os.makedirs(upload_folder, exist_ok=True)
-        else:
-            upload_folder = app.config['UPLOAD_FOLDER']
+        # Use /tmp for production (ECS), local uploads folder for development
+        upload_folder = '/tmp/uploads' if os.environ.get('AWS_EXECUTION_ENV') else app.config['UPLOAD_FOLDER']
+        os.makedirs(upload_folder, exist_ok=True)
 
         file_path = os.path.join(upload_folder, saved_filename)
-
-        # Save file temporarily
-        logger.error(f"Saving file to: {file_path}")
         file.save(file_path)
-        logger.error(f"File saved, size: {os.path.getsize(file_path)} bytes")
 
         # Calculate file hash
         file_hash = calculate_file_hash(file_path)
@@ -167,24 +147,15 @@ def process_file(file_id):
 
     def generate():
         try:
-            # Find the file - check /tmp first for Lambda/ECS
+            # Find the file in upload folder
+            upload_folder = '/tmp/uploads' if os.environ.get('AWS_EXECUTION_ENV') else app.config['UPLOAD_FOLDER']
             file_path = None
-            search_folders = []
-            if os.environ.get('AWS_EXECUTION_ENV') or os.environ.get('ECS_CONTAINER_METADATA_URI'):
-                search_folders.append('/tmp/uploads')
-            search_folders.append(app.config['UPLOAD_FOLDER'])
 
-            logger.error(f"Searching for file {file_id} in folders: {search_folders}")
-
-            for folder in search_folders:
-                if not os.path.exists(folder):
-                    continue
-                for filename in os.listdir(folder):
+            if os.path.exists(upload_folder):
+                for filename in os.listdir(upload_folder):
                     if filename.startswith(file_id):
-                        file_path = os.path.join(folder, filename)
+                        file_path = os.path.join(upload_folder, filename)
                         break
-                if file_path:
-                    break
 
             if not file_path or not os.path.exists(file_path):
                 yield f"data: {json.dumps({'error': 'File not found'})}\n\n"
@@ -452,53 +423,7 @@ def get_low_confidence_words(file_id):
 
 @app.route('/health')
 def health():
-    import subprocess
-    import pytesseract
-
-    debug_info = {
-        "status": "healthy",
-        "environment": {
-            "LAMBDA_TASK_ROOT": os.environ.get('LAMBDA_TASK_ROOT'),
-            "AWS_EXECUTION_ENV": os.environ.get('AWS_EXECUTION_ENV'),
-            "PATH": os.environ.get('PATH')
-        },
-        "tesseract": {
-            "pytesseract_cmd": pytesseract.pytesseract.tesseract_cmd,
-            "paths_checked": {}
-        }
-    }
-
-    # Check common tesseract paths
-    common_paths = ['/usr/bin/tesseract', '/opt/bin/tesseract', '/usr/local/bin/tesseract', '/bin/tesseract']
-    for path in common_paths:
-        exists = os.path.exists(path)
-        debug_info["tesseract"]["paths_checked"][path] = exists
-        if exists:
-            try:
-                result = subprocess.run([path, '--version'], capture_output=True, text=True, timeout=5)
-                debug_info["tesseract"][f"{path}_version"] = result.stdout.strip()
-            except Exception as e:
-                debug_info["tesseract"][f"{path}_error"] = str(e)
-
-    # Try 'which tesseract'
-    try:
-        result = subprocess.run(['which', 'tesseract'], capture_output=True, text=True, timeout=5)
-        debug_info["tesseract"]["which_output"] = result.stdout.strip()
-        debug_info["tesseract"]["which_returncode"] = result.returncode
-    except Exception as e:
-        debug_info["tesseract"]["which_error"] = str(e)
-
-    # Check poppler (needed for PDF processing)
-    debug_info["poppler"] = {}
-    try:
-        result = subprocess.run(['pdftoppm', '-v'], capture_output=True, text=True, timeout=5)
-        debug_info["poppler"]["pdftoppm_version"] = result.stderr.strip()
-        debug_info["poppler"]["available"] = True
-    except Exception as e:
-        debug_info["poppler"]["error"] = str(e)
-        debug_info["poppler"]["available"] = False
-
-    return jsonify(debug_info)
+    return jsonify({"status": "healthy"})
 
 
 if __name__ == '__main__':
