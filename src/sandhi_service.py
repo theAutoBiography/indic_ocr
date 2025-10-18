@@ -176,9 +176,11 @@ class SandhiService:
 
     def save_correction(self, corpus_entry_id: str, word: str, sandhi_points: List[int],
                        reference_split: str = "", sandhi_type: str = "",
-                       user_session_id: Optional[str] = None) -> Dict:
+                       user_session_id: Optional[str] = None,
+                       transliteration: str = "", graphemes: List[str] = None,
+                       transliteration_segments: List[str] = None) -> Dict:
         """
-        Save a sandhi correction to DynamoDB
+        Save a sandhi marking to DynamoDB
 
         Args:
             corpus_entry_id: ID from SandhiKosh corpus
@@ -187,6 +189,9 @@ class SandhiService:
             reference_split: Original split from corpus
             sandhi_type: Type of sandhi (consonant, visarga, etc.)
             user_session_id: Optional session identifier
+            transliteration: Full IITHLP transliteration
+            graphemes: List of Devanagari graphemes
+            transliteration_segments: List of transliterated graphemes
 
         Returns:
             Dict with success status and correction details
@@ -211,6 +216,14 @@ class SandhiService:
 
             if user_session_id:
                 item['user_session_id'] = user_session_id
+
+            # Add transliteration data if available
+            if transliteration:
+                item['transliteration'] = transliteration
+            if graphemes:
+                item['graphemes'] = graphemes
+            if transliteration_segments:
+                item['transliteration_segments'] = transliteration_segments
 
             self.table.put_item(Item=item)
 

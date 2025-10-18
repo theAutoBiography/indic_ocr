@@ -507,7 +507,10 @@ def submit_sandhi_marking():
         sandhi_points: [int],
         reference_split: str (optional),
         sandhi_type: str (optional),
-        user_session_id: str (optional)
+        user_session_id: str (optional),
+        transliteration: str (optional),
+        graphemes: [str] (optional),
+        transliteration_segments: [str] (optional)
     }
     """
     try:
@@ -523,7 +526,10 @@ def submit_sandhi_marking():
             sandhi_points=data['sandhi_points'],
             reference_split=data.get('reference_split', ''),
             sandhi_type=data.get('sandhi_type', ''),
-            user_session_id=data.get('user_session_id')
+            user_session_id=data.get('user_session_id'),
+            transliteration=data.get('transliteration', ''),
+            graphemes=data.get('graphemes', []),
+            transliteration_segments=data.get('transliteration_segments', [])
         )
 
         if result['success']:

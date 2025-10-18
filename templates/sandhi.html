@@ -608,7 +608,10 @@
                         word: currentWord.word,
                         sandhi_points: sandhiPoints,
                         reference_split: currentWord.split,
-                        sandhi_type: currentWord.type
+                        sandhi_type: currentWord.type,
+                        transliteration: currentWord.transliteration || '',
+                        graphemes: currentWord.graphemes || [],
+                        transliteration_segments: currentWord.transliteration_segments || []
                     })
                 });
 
