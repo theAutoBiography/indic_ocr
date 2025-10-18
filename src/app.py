@@ -484,12 +484,12 @@ def get_sandhi_word(word_id):
         if not word:
             return jsonify({"error": "Word not found"}), 404
 
-        # Get previous corrections for this word
-        corrections = sandhi_service.get_corrections_for_word(word_id)
+        # Get previous markings for this word
+        markings = sandhi_service.get_markings_for_word(word_id)
 
         return jsonify({
             'word': word,
-            'corrections': convert_decimals(corrections)
+            'markings': convert_decimals(markings)
         })
 
     except Exception as e:
@@ -497,10 +497,10 @@ def get_sandhi_word(word_id):
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/api/sandhi/correction', methods=['POST'])
-def submit_sandhi_correction():
+@app.route('/api/sandhi/marking', methods=['POST'])
+def submit_sandhi_marking():
     """
-    Submit a sandhi correction
+    Submit a sandhi marking
     Body: {
         corpus_entry_id: str,
         word: str,
@@ -527,12 +527,28 @@ def submit_sandhi_correction():
         )
 
         if result['success']:
+            # Get updated stats
+            stats = sandhi_service.get_stats()
+            result['stats'] = stats
             return jsonify(result)
         else:
             return jsonify(result), 500
 
     except Exception as e:
-        logger.error(f"Error submitting sandhi correction: {e}")
+        logger.error(f"Error submitting sandhi marking: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/sandhi/stats', methods=['GET'])
+def get_sandhi_stats():
+    """Get statistics about marked and unmarked words"""
+    try:
+        sandhi_service = SandhiService()
+        stats = sandhi_service.get_stats()
+        return jsonify(stats)
+
+    except Exception as e:
+        logger.error(f"Error getting sandhi stats: {e}")
         return jsonify({"error": str(e)}), 500
 
 

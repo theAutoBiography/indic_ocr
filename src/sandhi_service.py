@@ -133,15 +133,15 @@ class SandhiService:
                 'error': str(e)
             }
 
-    def get_corrections_for_word(self, corpus_entry_id: str) -> List[Dict]:
+    def get_markings_for_word(self, corpus_entry_id: str) -> List[Dict]:
         """
-        Get all corrections for a specific corpus entry
+        Get all markings for a specific corpus entry
 
         Args:
             corpus_entry_id: The corpus entry ID
 
         Returns:
-            List of corrections
+            List of markings
         """
         try:
             response = self.table.query(
@@ -155,8 +155,59 @@ class SandhiService:
             return response.get('Items', [])
 
         except Exception as e:
-            logger.error(f"Error fetching corrections: {str(e)}")
+            logger.error(f"Error fetching markings: {str(e)}")
             return []
+
+    def get_marked_words_count(self) -> int:
+        """
+        Get count of unique words that have been marked
+
+        Returns:
+            Number of unique corpus entries that have markings
+        """
+        try:
+            # Scan all items and get unique corpus_entry_ids
+            marked_ids = set()
+
+            # Scan with pagination
+            response = self.table.scan(
+                ProjectionExpression='corpus_entry_id'
+            )
+
+            for item in response.get('Items', []):
+                marked_ids.add(item['corpus_entry_id'])
+
+            # Handle pagination
+            while 'LastEvaluatedKey' in response:
+                response = self.table.scan(
+                    ProjectionExpression='corpus_entry_id',
+                    ExclusiveStartKey=response['LastEvaluatedKey']
+                )
+                for item in response.get('Items', []):
+                    marked_ids.add(item['corpus_entry_id'])
+
+            return len(marked_ids)
+
+        except Exception as e:
+            logger.error(f"Error getting marked words count: {str(e)}")
+            return 0
+
+    def get_stats(self) -> Dict:
+        """
+        Get statistics about marked and unmarked words
+
+        Returns:
+            Dict with total_words, marked_words, unmarked_words
+        """
+        total_words = len(self.corpus_data)
+        marked_words = self.get_marked_words_count()
+        unmarked_words = total_words - marked_words
+
+        return {
+            'total_words': total_words,
+            'marked_words': marked_words,
+            'unmarked_words': unmarked_words
+        }
 
     def get_random_words(self, count: int = 10) -> List[Dict]:
         """
