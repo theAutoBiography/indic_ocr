@@ -125,11 +125,56 @@
             flex-direction: column;
             align-items: center;
             gap: 2px;
+            position: relative;
+        }
+
+        .character-container.clickable {
+            cursor: pointer;
+            border-radius: 8px;
+            padding: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .character-container.clickable:hover {
+            background: rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .character-container.sandhi-marked {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 8px;
+        }
+
+        .character-container.sandhi-marked .character {
+            color: white;
+            font-weight: 600;
+        }
+
+        .character-container.sandhi-marked .character-roman {
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 600;
+        }
+
+        .character-container.sandhi-marked::after {
+            content: '✓';
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: var(--success-color);
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: bold;
         }
 
         .character {
             padding: 10px;
-            cursor: default;
+            cursor: inherit;
             user-select: none;
             transition: all 0.2s ease;
         }
@@ -156,36 +201,7 @@
             border-radius: 8px;
         }
 
-        .sandhi-marker {
-            width: 4px;
-            height: 60px;
-            background: transparent;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            border-radius: 2px;
-            position: relative;
-        }
-
-        .sandhi-marker:hover {
-            background: var(--warning-color);
-            transform: scaleY(1.1);
-        }
-
-        .sandhi-marker.active {
-            background: var(--sandhi-point-color);
-            box-shadow: 0 0 10px rgba(229, 62, 62, 0.5);
-        }
-
-        .sandhi-marker.active::before {
-            content: '✓';
-            position: absolute;
-            top: -25px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: var(--sandhi-point-color);
-            font-size: 1rem;
-            font-weight: bold;
-        }
+        /* Removed sandhi-marker styles - now using clickable characters instead */
 
         .reference-split {
             text-align: center;
@@ -555,16 +571,12 @@
             let charPosition = 0;
 
             for (let i = 0; i < graphemes.length; i++) {
-                // Add sandhi marker before each grapheme
-                const marker = document.createElement('div');
-                marker.className = 'sandhi-marker';
-                marker.dataset.position = charPosition;
-                marker.addEventListener('click', toggleSandhiPoint);
-                wordDisplay.appendChild(marker);
-
                 // Create character container with Devanagari and Roman
                 const charContainer = document.createElement('div');
-                charContainer.className = 'character-container';
+                charContainer.className = 'character-container clickable';
+                charContainer.dataset.position = charPosition;
+                charContainer.dataset.graphemeIndex = i;
+                charContainer.addEventListener('click', toggleSandhiCharacter);
 
                 // Add Devanagari grapheme (akshara)
                 const char = document.createElement('div');
@@ -594,27 +606,20 @@
                 // Increment character position by length of grapheme
                 charPosition += graphemes[i].length;
             }
-
-            // Add final sandhi marker
-            const finalMarker = document.createElement('div');
-            finalMarker.className = 'sandhi-marker';
-            finalMarker.dataset.position = charPosition;
-            finalMarker.addEventListener('click', toggleSandhiPoint);
-            wordDisplay.appendChild(finalMarker);
         }
 
-        function toggleSandhiPoint(event) {
-            const position = parseInt(event.target.dataset.position);
-            const markerEl = event.target;
+        function toggleSandhiCharacter(event) {
+            const container = event.currentTarget;
+            const position = parseInt(container.dataset.position);
 
             if (sandhiPoints.includes(position)) {
-                // Remove sandhi point
+                // Remove sandhi character
                 sandhiPoints = sandhiPoints.filter(p => p !== position);
-                markerEl.classList.remove('active');
+                container.classList.remove('sandhi-marked');
             } else {
-                // Add sandhi point
+                // Add sandhi character
                 sandhiPoints.push(position);
-                markerEl.classList.add('active');
+                container.classList.add('sandhi-marked');
             }
 
             sandhiPoints.sort((a, b) => a - b);
@@ -622,8 +627,8 @@
 
         clearBtn.addEventListener('click', () => {
             sandhiPoints = [];
-            document.querySelectorAll('.sandhi-marker').forEach(marker => {
-                marker.classList.remove('active');
+            document.querySelectorAll('.character-container').forEach(container => {
+                container.classList.remove('sandhi-marked');
             });
         });
 
