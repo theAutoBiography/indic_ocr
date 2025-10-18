@@ -30,3 +30,7 @@ class Config:
     CONFIDENCE_THRESHOLD = 80
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf', 'tiff', 'bmp'}
     TESSERACT_LANG = os.getenv('TESSERACT_LANG', 'san+eng+hin')  # Sanskrit, English, and Hindi
+
+    # VLM config
+    USE_VLM_REFINEMENT = os.getenv('USE_VLM_REFINEMENT', 'true').lower() == 'true'
+    VLM_BASE_MODEL = os.getenv('VLM_BASE_MODEL', 'microsoft/trocr-small-printed')

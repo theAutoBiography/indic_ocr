@@ -1,0 +1,46 @@
+{
+  "family": "drishti-ocr-training-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "2048",
+  "memory": "4096",
+  "executionRoleArn": "arn:aws:iam::YOUR_ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::YOUR_ACCOUNT_ID:role/drishti-training-task-role",
+  "containerDefinitions": [
+    {
+      "name": "training-container",
+      "image": "YOUR_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/drishti-ocr-training:latest",
+      "essential": true,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/drishti-ocr-training",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "training"
+        }
+      },
+      "environment": [
+        {
+          "name": "AWS_REGION",
+          "value": "us-east-1"
+        },
+        {
+          "name": "DYNAMODB_TABLE",
+          "value": "ocr-results"
+        },
+        {
+          "name": "S3_WORD_BUCKET",
+          "value": "ocr-word-images"
+        },
+        {
+          "name": "S3_MODEL_BUCKET",
+          "value": "ocr-trained-models"
+        },
+        {
+          "name": "CLEANUP_AFTER_TRAINING",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

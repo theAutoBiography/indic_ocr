@@ -22,10 +22,26 @@ pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
 
 
 class OCRProcessor:
-    def __init__(self, language=None):
+    def __init__(self, language=None, use_vlm_refinement=True):
         self.aws_service = AWSService()
         self.confidence_threshold = Config.CONFIDENCE_THRESHOLD
         self.tesseract_lang = language or Config.TESSERACT_LANG
+        self.use_vlm_refinement = use_vlm_refinement
+        self.vlm_inference = None
+
+        # Lazy load VLM if enabled
+        if self.use_vlm_refinement:
+            try:
+                from src.vlm_inference import get_vlm_inference
+                self.vlm_inference = get_vlm_inference()
+                if self.vlm_inference.is_available():
+                    logger.info("VLM refinement enabled and available")
+                else:
+                    logger.info("VLM refinement requested but no model available yet")
+                    self.use_vlm_refinement = False
+            except Exception as e:
+                logger.warning(f"Could not initialize VLM: {e}. Using Tesseract only.")
+                self.use_vlm_refinement = False
 
     def _calculate_image_hash(self, image_array):
         """Calculate SHA256 hash of an image array"""
@@ -227,6 +243,33 @@ class OCRProcessor:
                         "cached": False
                     }
 
+                    # VLM Refinement: If confidence is low and VLM is available, refine with VLM
+                    if conf < self.confidence_threshold and self.use_vlm_refinement and self.vlm_inference:
+                        try:
+                            # Load VLM model if not already loaded (lazy loading)
+                            if not self.vlm_inference.model_loaded:
+                                logger.info("Loading VLM model for first refinement...")
+                                self.vlm_inference.load_model()
+
+                            # Run VLM inference
+                            vlm_result = self.vlm_inference.predict(word_image, return_confidence=True)
+
+                            # Update word data with VLM results
+                            word_data["text"] = vlm_result['text']
+                            word_data["confidence"] = vlm_result['confidence']
+                            word_data["tesseract_text"] = text  # Keep original Tesseract result
+                            word_data["tesseract_confidence"] = conf
+                            word_data["refined_by_vlm"] = True
+
+                            logger.info(
+                                f"VLM refinement: '{text}' (conf={conf:.1f}) → '{vlm_result['text']}' (conf={vlm_result['confidence']:.1f})"
+                            )
+
+                        except Exception as vlm_error:
+                            logger.error(f"VLM refinement failed, using Tesseract result: {vlm_error}")
+                            word_data["refined_by_vlm"] = False
+                            word_data["vlm_error"] = str(vlm_error)
+
                 # Always store word images for UI display and VLM training
                 # Images are always uploaded (even for cached results) so users can view them when correcting
                 word_filename = f"{file_id}/page_{page_num}/word_{uuid.uuid4().hex}.png"
@@ -255,21 +298,21 @@ class OCRProcessor:
                     char_upload_futures.extend(char_data.get("upload_futures", []))
 
                 page_data["words"].append(word_data)
-                page_data["full_text"] += text + " "
+                page_data["full_text"] += word_data["text"] + " "  # Use final text (VLM if refined)
 
                 # Prepare DynamoDB item with new schema
                 db_item = {
                     "file_id": file_id,
                     "page#word_index": f"{page_num:04d}#{word_index:04d}",
                     "word_id": str(uuid.uuid4()),
-                    "original_text": text if not cached_result else cached_result['original_text'],
-                    "confidence": conf if not cached_result else cached_result['confidence'],  # Store as number for GSI sorting
+                    "original_text": word_data["text"],  # Use final text (VLM if refined, else Tesseract)
+                    "confidence": word_data["confidence"],  # Store as number for GSI sorting
                     "language": self.tesseract_lang,
-                    "detected_script": detect_script(text),
+                    "detected_script": detect_script(word_data["text"]),
                     "bbox": word_data["bbox"],
                     "page": page_num,
                     "word_index": word_index,
-                    "is_low_confidence": "true" if conf < self.confidence_threshold else "false",
+                    "is_low_confidence": "true" if word_data["confidence"] < self.confidence_threshold else "false",
                     "is_corrected": "true" if cached_result and cached_result['is_corrected'] else "false",
                     "correction_count": 0,
                     "approved_for_training": False,
@@ -278,6 +321,14 @@ class OCRProcessor:
                     "updated_at": page_data["timestamp"],
                     "image_hash": image_hash,  # Store image hash for caching
                 }
+
+                # Add VLM metadata if word was refined
+                if word_data.get("refined_by_vlm"):
+                    db_item["refined_by_vlm"] = True
+                    db_item["tesseract_text"] = word_data.get("tesseract_text")
+                    db_item["tesseract_confidence"] = word_data.get("tesseract_confidence")
+                    db_item["vlm_text"] = word_data["text"]
+                    db_item["vlm_confidence"] = word_data["confidence"]
 
                 # If cached result has corrected text, add it
                 if cached_result and cached_result['is_corrected']:

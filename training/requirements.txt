@@ -1,0 +1,14 @@
+# Training-specific requirements for VLM training
+torch>=2.0.0
+torchvision>=0.15.0
+transformers>=4.30.0
+datasets>=2.14.0
+accelerate>=0.20.0
+evaluate>=0.4.0
+jiwer>=3.0.0  # For WER/CER metrics
+pillow>=10.0.0
+boto3>=1.34.24
+python-dotenv>=1.0.0
+
+# Optional: For faster training
+# bitsandbytes>=0.41.0  # For 8-bit optimization

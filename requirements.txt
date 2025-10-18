@@ -7,3 +7,8 @@ boto3>=1.34.24
 opencv-python-headless>=4.9.0.80
 numpy>=1.26.3
 python-dotenv==1.0.0
+
+# VLM inference dependencies (for hybrid OCR)
+torch>=2.0.0
+torchvision>=0.15.0
+transformers>=4.30.0

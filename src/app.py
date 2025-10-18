@@ -162,7 +162,11 @@ def process_file(file_id):
                 return
 
             # Process file with specified language
-            processor = OCRProcessor(language=language)
+            # VLM refinement is enabled by default (Config.USE_VLM_REFINEMENT)
+            processor = OCRProcessor(
+                language=language,
+                use_vlm_refinement=Config.USE_VLM_REFINEMENT
+            )
 
             for page_result in processor.process_file(file_path, file_id):
                 # Send each page result as it's processed (convert Decimals for JSON)
@@ -286,11 +290,41 @@ def submit_correction():
 
         updated_item = response.get('Attributes', {})
 
+        # If approved for training, increment counter and check if training should be triggered
+        training_status = None
+        if approve_for_training:
+            try:
+                from src.training_counter import TrainingCounter
+                counter = TrainingCounter(aws_service=aws_service)
+                counter_result = counter.increment_counter()
+                training_status = {
+                    'count': counter_result['new_count'],
+                    'threshold': counter_result['threshold'],
+                    'progress_percent': (counter_result['new_count'] / counter_result['threshold']) * 100
+                }
+
+                # Trigger training if threshold reached
+                if counter_result['should_trigger_training']:
+                    from src.training_trigger import trigger_training_job
+                    training_job = trigger_training_job()
+                    training_status['training_triggered'] = True
+                    training_status['job_id'] = training_job.get('job_id')
+                    logger.info(f"Training job triggered: {training_job.get('job_id')}")
+
+                    # Reset counter after triggering
+                    counter.reset_counter(training_job.get('job_id'))
+
+            except Exception as training_error:
+                logger.error(f"Error with training counter: {training_error}")
+                # Don't fail the correction if training counter fails
+                training_status = {'error': str(training_error)}
+
         return jsonify({
             "success": True,
             "message": "Correction submitted successfully. Future instances of this word will use the corrected text.",
             "updated_item": updated_item,
-            "cache_note": "All words with matching image_hash will retrieve this correction automatically"
+            "cache_note": "All words with matching image_hash will retrieve this correction automatically",
+            "training_status": training_status
         })
 
     except Exception as e:
