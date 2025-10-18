@@ -367,6 +367,11 @@
                 </div>
 
                 <div class="controls">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--text-dark); margin-bottom: 15px;">
+                        <input type="checkbox" id="includeOcrWords" style="width: 18px; height: 18px;">
+                        <span>Include OCR-detected sandhi words (from uploaded documents)</span>
+                    </label>
+
                     <button class="btn btn-modern btn-secondary-modern" id="clearBtn">
                         <i class="fas fa-eraser"></i> Clear Marks
                     </button>
@@ -471,7 +476,11 @@
                 loadingMessage.classList.remove('hidden');
                 wordDisplayContainer.classList.add('hidden');
 
-                const response = await fetch('/api/sandhi/words/random?count=1');
+                // Check if OCR words should be included
+                const includeOcr = document.getElementById('includeOcrWords').checked;
+                const url = `/api/sandhi/words/random?count=1&include_ocr=${includeOcr}`;
+
+                const response = await fetch(url);
                 const data = await response.json();
 
                 if (data.words && data.words.length > 0) {
@@ -495,7 +504,26 @@
             // Update word info
             wordId.textContent = `Entry ID: ${currentWord.id}`;
             wordType.textContent = currentWord.type || 'Unknown';
-            splitText.textContent = currentWord.split || '-';
+
+            // Show OCR-specific info if source is OCR
+            if (currentWord.source === 'ocr') {
+                const ocrInfo = ` | OCR Confidence: ${currentWord.ocr_confidence.toFixed(1)}% | Sandhi Confidence: ${(currentWord.sandhi_confidence * 100).toFixed(0)}%`;
+                wordType.textContent += ocrInfo;
+                wordType.style.background = '#fef3c7';
+                wordType.style.color = '#78350f';
+
+                // Show detected sandhi patterns
+                if (currentWord.sandhi_indicators && currentWord.sandhi_indicators.length > 0) {
+                    splitText.innerHTML = `<em>Auto-detected patterns:</em> ${currentWord.sandhi_indicators.slice(0, 2).join(', ')}`;
+                } else {
+                    splitText.textContent = 'OCR word (no reference split)';
+                }
+            } else {
+                splitText.textContent = currentWord.split || '-';
+                wordType.style.background = '';
+                wordType.style.color = '';
+            }
+
             wordTransliteration.textContent = `Full transliteration: ${currentWord.transliteration || ''}`;
 
             // Clear and rebuild word display

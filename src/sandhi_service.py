@@ -316,26 +316,118 @@ class SandhiService:
             'unmarked_words': unmarked_words
         }
 
-    def get_random_words(self, count: int = 10) -> List[Dict]:
+    def get_ocr_sandhi_words(self, limit: int = 50, min_confidence: float = 0.5) -> List[Dict]:
         """
-        Get random words from the corpus
+        Get words from OCR results that were detected as having sandhi
+
+        Args:
+            limit: Maximum number of words to return
+            min_confidence: Minimum sandhi confidence threshold (0.0 to 1.0)
+
+        Returns:
+            List of words with sandhi detection data, transliteration, and graphemes
+        """
+        try:
+            # Query OCR results table for words with sandhi_detected = true
+            table = self.aws_service.dynamodb.Table(Config.DYNAMODB_TABLE)
+
+            # Scan for sandhi-detected words (could be optimized with GSI if needed)
+            response = table.scan(
+                FilterExpression='sandhi_detected = :true AND sandhi_confidence >= :min_conf',
+                ExpressionAttributeValues={
+                    ':true': True,
+                    ':min_conf': Decimal(str(min_confidence))
+                },
+                Limit=limit
+            )
+
+            ocr_words = []
+            for item in response.get('Items', []):
+                # Create word entry similar to corpus format
+                word_text = item.get('original_text', '')
+
+                # Skip non-Devanagari or empty words
+                if not word_text or not any('\u0900' <= c <= '\u097F' for c in word_text):
+                    continue
+
+                # Segment and transliterate
+                graphemes = segment_devanagari(word_text)
+
+                word_entry = {
+                    'id': f"ocr_{item.get('word_id', '')}",
+                    'word': word_text,
+                    'split': '',  # OCR words don't have reference splits
+                    'type': 'ocr-detected',
+                    'source': 'ocr',
+                    'file_id': item.get('file_id'),
+                    'page': item.get('page'),
+                    'word_index': item.get('word_index'),
+                    'ocr_confidence': float(item.get('confidence', 0)),
+                    'sandhi_confidence': float(item.get('sandhi_confidence', 0)),
+                    'sandhi_types': item.get('sandhi_types', []),
+                    'sandhi_indicators': item.get('sandhi_indicators', []),
+                    'graphemes': graphemes
+                }
+
+                # Add transliteration
+                if iithlp:
+                    try:
+                        full_transliteration = iithlp.to_roman(word_text)
+                        word_entry['transliteration'] = full_transliteration
+
+                        trans_segments = []
+                        for grapheme in graphemes:
+                            try:
+                                trans = iithlp.to_roman(grapheme).strip()
+                                trans_segments.append(trans)
+                            except Exception as e:
+                                logger.error(f"Error transliterating grapheme '{grapheme}': {e}")
+                                trans_segments.append('')
+
+                        word_entry['transliteration_segments'] = trans_segments
+                    except Exception as e:
+                        logger.error(f"Error transliterating OCR word '{word_text}': {e}")
+                        word_entry['transliteration'] = ''
+                        word_entry['transliteration_segments'] = [''] * len(graphemes)
+                else:
+                    word_entry['transliteration'] = ''
+                    word_entry['transliteration_segments'] = [''] * len(graphemes)
+
+                ocr_words.append(word_entry)
+
+            return ocr_words
+
+        except Exception as e:
+            logger.error(f"Error fetching OCR sandhi words: {e}")
+            return []
+
+    def get_random_words(self, count: int = 10, include_ocr: bool = False) -> List[Dict]:
+        """
+        Get random words from the corpus and optionally OCR results
 
         Args:
             count: Number of random words to return
+            include_ocr: If True, mix in words from OCR with sandhi detected
 
         Returns:
             List of random words with transliteration and grapheme segmentation
         """
         import random
 
-        if count >= len(self.corpus_data):
-            selected_words = self.corpus_data
-        else:
-            selected_words = random.sample(self.corpus_data, count)
-
-        # Add transliteration to each word
         result = []
-        for word in selected_words:
+
+        # Get corpus words
+        corpus_count = count
+        if include_ocr:
+            corpus_count = int(count * 0.7)  # 70% from corpus, 30% from OCR
+
+        if corpus_count >= len(self.corpus_data):
+            selected_corpus = self.corpus_data
+        else:
+            selected_corpus = random.sample(self.corpus_data, corpus_count)
+
+        # Add transliteration to each corpus word
+        for word in selected_corpus:
             word_copy = word.copy()
 
             # Segment Devanagari into grapheme clusters
@@ -371,5 +463,18 @@ class SandhiService:
                 word_copy['transliteration_segments'] = [''] * len(graphemes)
 
             result.append(word_copy)
+
+        # Add OCR words if requested
+        if include_ocr:
+            ocr_count = count - len(result)
+            if ocr_count > 0:
+                ocr_words = self.get_ocr_sandhi_words(limit=ocr_count * 2, min_confidence=0.5)
+                if ocr_words:
+                    selected_ocr = random.sample(ocr_words, min(ocr_count, len(ocr_words)))
+                    result.extend(selected_ocr)
+
+        # Shuffle the combined list
+        if include_ocr:
+            random.shuffle(result)
 
         return result

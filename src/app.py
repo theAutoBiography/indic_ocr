@@ -458,18 +458,22 @@ def get_sandhi_words():
 @app.route('/api/sandhi/words/random', methods=['GET'])
 def get_random_sandhi_words():
     """
-    Get random words from the corpus
-    Query params: count (default 10)
+    Get random words from the corpus and optionally OCR results
+    Query params:
+        - count (default 10): Number of words to return
+        - include_ocr (default false): Include words from OCR with sandhi detected
     """
     try:
         count = int(request.args.get('count', 10))
+        include_ocr = request.args.get('include_ocr', 'false').lower() == 'true'
 
         sandhi_service = SandhiService()
-        words = sandhi_service.get_random_words(count=count)
+        words = sandhi_service.get_random_words(count=count, include_ocr=include_ocr)
 
         return jsonify({
             'words': words,
-            'count': len(words)
+            'count': len(words),
+            'includes_ocr': include_ocr
         })
 
     except Exception as e:
