@@ -651,11 +651,36 @@
                         </label>
                     </div>
 
+                    <!-- Sandhi Annotation -->
+                    <div
+                        style="margin-top: 15px; padding: 12px; background: #fef3c7; border-left: 4px solid var(--warning-color); border-radius: 8px;">
+                        <div style="font-size: 0.9rem; color: #78350f; margin-bottom: 8px;">
+                            <i class="fas fa-link"></i> <strong>Sandhi Detection:</strong>
+                        </div>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="hasSandhi" style="width: 18px; height: 18px;">
+                            <span style="font-weight: 500;">This word contains a sandhi (phonetic junction)</span>
+                        </label>
+
+                        <!-- Auto-detection reasoning -->
+                        <div id="sandhiReasoning" style="margin-top: 10px; padding: 8px; background: rgba(255, 255, 255, 0.7); border-radius: 6px; display: none;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #92400e; margin-bottom: 4px;">
+                                <i class="fas fa-robot"></i> Auto-Detection:
+                            </div>
+                            <div id="sandhiReasoningText" style="font-size: 0.75rem; color: #78350f; line-height: 1.4;"></div>
+                        </div>
+
+                        <div style="margin-top: 8px; font-size: 0.8rem; color: #92400e;">
+                            Check this if the word is a compound with sandhi.
+                        </div>
+                    </div>
+
                     <div
                         style="margin-top: 15px; padding: 12px; background: #f0f9ff; border-left: 4px solid var(--primary-color); border-radius: 8px;">
                         <div style="font-size: 0.9rem; color: #1e40af;">
-                            <i class="fas fa-info-circle"></i> <strong>Note:</strong> Your corrections will be used to
-                            improve our OCR models.
+                            <i class="fas fa-info-circle"></i> <strong>Note:</strong> Your corrections and annotations
+                            will be used to
+                            improve our OCR and sandhi detection models.
                         </div>
                     </div>
                 </div>
@@ -1117,8 +1142,23 @@
             `;
 
                 pageData.words.forEach((word, index) => {
+                    // Build tooltip text with sandhi information
+                    let tooltipText = '';
+                    let sandhiInfo = '';
+
+                    if (word.sandhi_detected !== undefined) {
+                        if (word.sandhi_detected) {
+                            sandhiInfo = `Sandhi detected (${(word.sandhi_confidence * 100).toFixed(0)}% confidence)`;
+                        } else {
+                            sandhiInfo = `No sandhi detected`;
+                        }
+                    }
+
                     // Check if word is corrected (from cache)
                     if (word.cached && word.is_corrected) {
+                        tooltipText = `Previously corrected | Click to edit | Confidence: ${word.confidence.toFixed(1)}%`;
+                        if (sandhiInfo) tooltipText += ` | ${sandhiInfo}`;
+
                         pageHtml += `
                         <span class="word corrected"
                               data-file-id="${fileId}"
@@ -1127,12 +1167,15 @@
                               data-text="${word.text}"
                               data-confidence="${word.confidence}"
                               data-bs-toggle="tooltip"
-                              title="Previously corrected | Click to edit | Confidence: ${word.confidence.toFixed(1)}%">
+                              title="${tooltipText}">
                             ${word.text}
                             <span class="corrected-badge">✓</span>
                         </span>
                     `;
                     } else if (word.confidence < 80) {
+                        tooltipText = `Click to correct | Confidence: ${word.confidence.toFixed(1)}%`;
+                        if (sandhiInfo) tooltipText += ` | ${sandhiInfo}`;
+
                         pageHtml += `
                         <span class="word low-confidence"
                               data-file-id="${fileId}"
@@ -1141,13 +1184,23 @@
                               data-text="${word.text}"
                               data-confidence="${word.confidence}"
                               data-bs-toggle="tooltip"
-                              title="Click to correct | Confidence: ${word.confidence.toFixed(1)}%">
+                              title="${tooltipText}">
                             ${word.text}
                             <span class="badge bg-warning confidence-badge">${word.confidence.toFixed(0)}%</span>
                         </span>
                     `;
                     } else {
-                        pageHtml += `<span class="word">${word.text}</span>`;
+                        // High confidence words - show sandhi info if detected
+                        if (sandhiInfo) {
+                            pageHtml += `
+                            <span class="word"
+                                  data-bs-toggle="tooltip"
+                                  title="${sandhiInfo}">
+                                ${word.text}
+                            </span>`;
+                        } else {
+                            pageHtml += `<span class="word">${word.text}</span>`;
+                        }
                     }
                 });
 
@@ -1188,6 +1241,9 @@
                 document.getElementById('wordConfidence').textContent = `${confidence.toFixed(1)}%`;
                 correctedTextInput.value = text; // Pre-fill with original text
 
+                // Reset sandhi checkbox
+                document.getElementById('hasSandhi').checked = false;
+
                 // Fetch full word data including images
                 try {
                     const response = await fetch(`/api/word/${fileId}/${page}/${wordIndex}`);
@@ -1196,6 +1252,50 @@
                     if (data.success && data.word) {
                         document.getElementById('wordLanguage').textContent = data.word.language || 'Unknown';
                         document.getElementById('wordScript').textContent = data.word.detected_script || 'Unknown';
+
+                        // Pre-fill sandhi checkbox and show reasoning if auto-detected
+                        const sandhiReasoningDiv = document.getElementById('sandhiReasoning');
+                        const sandhiReasoningText = document.getElementById('sandhiReasoningText');
+
+                        if (data.word.sandhi_detected !== undefined) {
+                            document.getElementById('hasSandhi').checked = data.word.sandhi_detected;
+
+                            // Show reasoning if sandhi was detected
+                            if (data.word.sandhi_detected && data.word.sandhi_confidence !== undefined) {
+                                const confidence = (data.word.sandhi_confidence * 100).toFixed(0);
+                                const indicators = data.word.sandhi_indicators || [];
+                                const types = data.word.sandhi_types || [];
+
+                                let reasoningHTML = `<strong>Confidence: ${confidence}%</strong><br>`;
+
+                                if (types.length > 0) {
+                                    reasoningHTML += `<strong>Sandhi types:</strong> ${types.join(', ')}<br>`;
+                                }
+
+                                if (indicators.length > 0) {
+                                    reasoningHTML += `<strong>Patterns detected:</strong><br>`;
+                                    indicators.forEach((indicator, idx) => {
+                                        if (idx < 3) { // Show max 3 indicators
+                                            reasoningHTML += `• ${indicator}<br>`;
+                                        }
+                                    });
+                                    if (indicators.length > 3) {
+                                        reasoningHTML += `<em>...and ${indicators.length - 3} more</em>`;
+                                    }
+                                }
+
+                                sandhiReasoningText.innerHTML = reasoningHTML;
+                                sandhiReasoningDiv.style.display = 'block';
+                            } else if (!data.word.sandhi_detected) {
+                                // Show why no sandhi was detected
+                                sandhiReasoningText.innerHTML = `<em>No sandhi patterns detected in this word.</em>`;
+                                sandhiReasoningDiv.style.display = 'block';
+                            } else {
+                                sandhiReasoningDiv.style.display = 'none';
+                            }
+                        } else {
+                            sandhiReasoningDiv.style.display = 'none';
+                        }
 
                         // Show word image if available
                         if (data.word.word_image_url) {
@@ -1225,6 +1325,8 @@
                 if (!currentWordData) return;
 
                 const correctedText = correctedTextInput.value.trim();
+                const hasSandhi = document.getElementById('hasSandhi').checked;
+
                 if (!correctedText) {
                     alert('Please enter corrected text');
                     return;
@@ -1244,7 +1346,8 @@
                             page: currentWordData.page,
                             word_index: currentWordData.wordIndex,
                             corrected_text: correctedText,
-                            approve_for_training: true
+                            approve_for_training: true,
+                            has_sandhi: hasSandhi
                         })
                     });
 
@@ -1260,7 +1363,17 @@
                             // Remove low-confidence styling and update text
                             wordElement.classList.remove('low-confidence');
                             wordElement.classList.add('word-corrected');
-                            wordElement.innerHTML = correctedText + ' <span class="badge bg-success">✓</span>';
+
+                            // Add sandhi indicator if applicable
+                            const sandhiIcon = hasSandhi ? '<span class="badge" style="background: var(--warning-color); font-size: 0.7em; margin-left: 2px;" title="Contains sandhi">🔗</span>' : '';
+                            wordElement.innerHTML = correctedText + ' <span class="badge bg-success">✓</span>' + sandhiIcon;
+
+                            // Store sandhi annotation as data attribute for hover display
+                            if (hasSandhi) {
+                                wordElement.setAttribute('data-has-sandhi', 'true');
+                                wordElement.setAttribute('title', 'This word contains a sandhi (phonetic junction)');
+                            }
+
                             wordElement.removeAttribute('data-bs-toggle');
                             wordElement.removeEventListener('click', openCorrectionModal);
                             wordElement.style.cursor = 'default';

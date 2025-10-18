@@ -255,6 +255,7 @@ def submit_correction():
         word_index = int(data['word_index'])
         corrected_text = data['corrected_text']
         approve_for_training = data.get('approve_for_training', False)
+        has_sandhi = data.get('has_sandhi', False)
 
         # Initialize AWS service
         aws_service = AWSService()
@@ -273,6 +274,7 @@ def submit_correction():
                     corrected_at = :timestamp,
                     updated_at = :timestamp,
                     approved_for_training = :approved,
+                    has_sandhi = :has_sandhi,
                     correction_count = correction_count + :inc
             """,
             ExpressionAttributeValues={
@@ -280,6 +282,7 @@ def submit_correction():
                 ':is_corrected': 'true',
                 ':timestamp': datetime.utcnow().isoformat(),
                 ':approved': approve_for_training,
+                ':has_sandhi': has_sandhi,
                 ':inc': 1
             },
             ReturnValues="ALL_NEW"
