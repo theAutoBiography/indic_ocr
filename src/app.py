@@ -9,6 +9,7 @@ from werkzeug.utils import secure_filename
 from src.config import Config
 from src.ocr_processor import OCRProcessor
 from src.aws_service import AWSService
+from src.sandhi_service import SandhiService
 from datetime import datetime
 import logging
 
@@ -418,6 +419,120 @@ def get_low_confidence_words(file_id):
 
     except Exception as e:
         logger.error(f"Error getting low confidence words: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# SANDHI ROUTES
+# ============================================================================
+
+@app.route('/sandhi')
+def sandhi_page():
+    """Serve the DrishtiSandhi page"""
+    return render_template('sandhi.html')
+
+
+@app.route('/api/sandhi/words', methods=['GET'])
+def get_sandhi_words():
+    """
+    Get paginated list of words from SandhiKosh corpus
+    Query params: limit (default 50), offset (default 0)
+    """
+    try:
+        limit = int(request.args.get('limit', 50))
+        offset = int(request.args.get('offset', 0))
+
+        sandhi_service = SandhiService()
+        result = sandhi_service.get_words(limit=limit, offset=offset)
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error getting sandhi words: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/sandhi/words/random', methods=['GET'])
+def get_random_sandhi_words():
+    """
+    Get random words from the corpus
+    Query params: count (default 10)
+    """
+    try:
+        count = int(request.args.get('count', 10))
+
+        sandhi_service = SandhiService()
+        words = sandhi_service.get_random_words(count=count)
+
+        return jsonify({
+            'words': words,
+            'count': len(words)
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting random sandhi words: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/sandhi/word/<word_id>', methods=['GET'])
+def get_sandhi_word(word_id):
+    """Get a specific word by its corpus ID"""
+    try:
+        sandhi_service = SandhiService()
+        word = sandhi_service.get_word_by_id(word_id)
+
+        if not word:
+            return jsonify({"error": "Word not found"}), 404
+
+        # Get previous corrections for this word
+        corrections = sandhi_service.get_corrections_for_word(word_id)
+
+        return jsonify({
+            'word': word,
+            'corrections': convert_decimals(corrections)
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting sandhi word: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/sandhi/correction', methods=['POST'])
+def submit_sandhi_correction():
+    """
+    Submit a sandhi correction
+    Body: {
+        corpus_entry_id: str,
+        word: str,
+        sandhi_points: [int],
+        reference_split: str (optional),
+        sandhi_type: str (optional),
+        user_session_id: str (optional)
+    }
+    """
+    try:
+        data = request.get_json()
+
+        if not data or 'corpus_entry_id' not in data or 'word' not in data or 'sandhi_points' not in data:
+            return jsonify({"error": "Missing required fields"}), 400
+
+        sandhi_service = SandhiService()
+        result = sandhi_service.save_correction(
+            corpus_entry_id=data['corpus_entry_id'],
+            word=data['word'],
+            sandhi_points=data['sandhi_points'],
+            reference_split=data.get('reference_split', ''),
+            sandhi_type=data.get('sandhi_type', ''),
+            user_session_id=data.get('user_session_id')
+        )
+
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify(result), 500
+
+    except Exception as e:
+        logger.error(f"Error submitting sandhi correction: {e}")
         return jsonify({"error": str(e)}), 500
 
 
