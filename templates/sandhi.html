@@ -111,13 +111,20 @@
         .word-display {
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
             flex-wrap: wrap;
             gap: 2px;
             margin: 30px 0 10px 0;
-            min-height: 80px;
+            min-height: 120px;
             font-size: 2.5rem;
             font-family: 'Noto Sans Devanagari', sans-serif;
+        }
+
+        .character-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
         }
 
         .character {
@@ -127,14 +134,24 @@
             transition: all 0.2s ease;
         }
 
+        .character-roman {
+            font-size: 0.85rem;
+            color: #718096;
+            font-family: 'Georgia', serif;
+            font-style: italic;
+            padding: 2px 4px;
+            min-width: 20px;
+            text-align: center;
+        }
+
         .word-transliteration {
             text-align: center;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             color: #718096;
             font-family: 'Georgia', serif;
             font-style: italic;
             margin-bottom: 20px;
-            padding: 10px;
+            padding: 8px;
             background: rgba(255, 255, 255, 0.5);
             border-radius: 8px;
         }
@@ -479,11 +496,12 @@
             wordId.textContent = `Entry ID: ${currentWord.id}`;
             wordType.textContent = currentWord.type || 'Unknown';
             splitText.textContent = currentWord.split || '-';
-            wordTransliteration.textContent = currentWord.transliteration || '';
+            wordTransliteration.textContent = `Full transliteration: ${currentWord.transliteration || ''}`;
 
             // Clear and rebuild word display
             wordDisplay.innerHTML = '';
             const word = currentWord.word;
+            const transliteration = currentWord.transliteration || '';
 
             for (let i = 0; i < word.length; i++) {
                 // Add sandhi marker before each character
@@ -493,11 +511,24 @@
                 marker.addEventListener('click', toggleSandhiPoint);
                 wordDisplay.appendChild(marker);
 
-                // Add character
+                // Create character container with Devanagari and Roman
+                const charContainer = document.createElement('div');
+                charContainer.className = 'character-container';
+
+                // Add Devanagari character
                 const char = document.createElement('div');
                 char.className = 'character';
                 char.textContent = word[i];
-                wordDisplay.appendChild(char);
+                charContainer.appendChild(char);
+
+                // Add Roman transliteration character (or placeholder)
+                const romanChar = document.createElement('div');
+                romanChar.className = 'character-roman';
+                // Use the character at the same index from transliteration, or placeholder
+                romanChar.textContent = transliteration[i] || '·';
+                charContainer.appendChild(romanChar);
+
+                wordDisplay.appendChild(charContainer);
             }
 
             // Add final sandhi marker
