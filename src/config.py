@@ -25,8 +25,12 @@ class Config:
 
     # DynamoDB
     DYNAMODB_TABLE = os.getenv('DYNAMODB_TABLE', 'ocr-results')
+    SANDHI_TABLE = os.getenv('SANDHI_TABLE', 'sandhi-corrections')
 
     # OCR config
     CONFIDENCE_THRESHOLD = 80
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf', 'tiff', 'bmp'}
     TESSERACT_LANG = os.getenv('TESSERACT_LANG', 'san+eng+hin')  # Sanskrit, English, and Hindi
+
+    # Sandhi config
+    SANDHI_DATA_PATH = os.path.join(PROJECT_ROOT, 'data', 'sandhikosh_combined.json')

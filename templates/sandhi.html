@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DrishtiSandhi - Sanskrit Sandhi Analysis</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/brands.min.css">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --primary-dark: #5568d3;
+            --secondary-color: #764ba2;
+            --success-color: #48bb78;
+            --warning-color: #f6ad55;
+            --bg-light: #f7fafc;
+            --text-dark: #2d3748;
+            --border-color: #e2e8f0;
+            --sandhi-point-color: #e53e3e;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            padding: 40px 20px;
+        }
+
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .app-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 5px;
+        }
+
+        .app-subtitle {
+            color: #718096;
+            font-size: 0.85rem;
+            font-weight: 400;
+        }
+
+        .nav-link {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 10px;
+            display: inline-block;
+        }
+
+        .nav-link:hover {
+            color: var(--primary-dark);
+        }
+
+        .content-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .word-display-container {
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            border: 2px solid var(--border-color);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 20px 0;
+        }
+
+        .word-info {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .word-id {
+            color: #718096;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+
+        .word-type-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+        }
+
+        .word-display {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 2px;
+            margin: 30px 0 10px 0;
+            min-height: 120px;
+            font-size: 2.5rem;
+            font-family: 'Noto Sans Devanagari', sans-serif;
+        }
+
+        .character-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .character {
+            padding: 10px;
+            cursor: default;
+            user-select: none;
+            transition: all 0.2s ease;
+        }
+
+        .character-roman {
+            font-size: 0.85rem;
+            color: #718096;
+            font-family: 'Georgia', serif;
+            font-style: italic;
+            padding: 2px 4px;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .word-transliteration {
+            text-align: center;
+            font-size: 1.1rem;
+            color: #718096;
+            font-family: 'Georgia', serif;
+            font-style: italic;
+            margin-bottom: 20px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 8px;
+        }
+
+        .sandhi-marker {
+            width: 4px;
+            height: 60px;
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-radius: 2px;
+            position: relative;
+        }
+
+        .sandhi-marker:hover {
+            background: var(--warning-color);
+            transform: scaleY(1.1);
+        }
+
+        .sandhi-marker.active {
+            background: var(--sandhi-point-color);
+            box-shadow: 0 0 10px rgba(229, 62, 62, 0.5);
+        }
+
+        .sandhi-marker.active::before {
+            content: '✓';
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: var(--sandhi-point-color);
+            font-size: 1rem;
+            font-weight: bold;
+        }
+
+        .reference-split {
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            font-family: 'Noto Sans Devanagari', sans-serif;
+            color: #718096;
+            margin-top: 20px;
+        }
+
+        .reference-split strong {
+            color: var(--text-dark);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .btn-modern {
+            border-radius: 8px;
+            padding: 12px 30px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .btn-primary-modern {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+        }
+
+        .btn-primary-modern:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success-modern {
+            background: linear-gradient(135deg, var(--success-color), #38a169);
+            color: white;
+        }
+
+        .btn-success-modern:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+        }
+
+        .btn-secondary-modern {
+            background: #e2e8f0;
+            color: var(--text-dark);
+        }
+
+        .btn-secondary-modern:hover {
+            background: #cbd5e0;
+        }
+
+        .instructions {
+            background: #f0f9ff;
+            border-left: 4px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .instructions-title {
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+
+        .instructions ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #1e40af;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .stat-label {
+            color: #718096;
+            font-size: 0.9rem;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 768px) {
+            .word-display {
+                font-size: 1.8rem;
+            }
+
+            .app-title {
+                font-size: 1.5rem;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="main-container">
+        <div class="header-card">
+            <div class="app-title">
+                <i class="fas fa-language"></i> DrishtiSandhi
+            </div>
+            <div class="app-subtitle">Sanskrit Sandhi Analysis & Correction Tool</div>
+            <a href="/" class="nav-link"><i class="fas fa-arrow-left"></i> Back to Drishti OCR</a>
+        </div>
+
+        <div class="content-card">
+            <div class="instructions">
+                <div class="instructions-title"><i class="fas fa-info-circle"></i> How to Mark Sandhi Points</div>
+                <ul>
+                    <li><strong>What is a sandhi point?</strong> - A sandhi point is where two words join together with phonetic changes</li>
+                    <li><strong>Where to click:</strong> Click on the <strong>vertical lines between characters</strong> where the sandhi split occurs</li>
+                    <li><strong>Example:</strong> In <span style="font-family: 'Noto Sans Devanagari';">धृतराष्ट्र उवाच</span> (dhṛtarāṣṭra uvāca) → splits to <span style="font-family: 'Noto Sans Devanagari';">धृतराष्ट्रः + उवाच</span>, mark the split after 'र' and before 'उ'</li>
+                    <li><strong>Multiple splits:</strong> Some words have multiple sandhi points - mark all of them</li>
+                    <li><strong>Roman text:</strong> IITHLP transliteration is shown below the word to help identify phonemes</li>
+                </ul>
+            </div>
+
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="totalWords">-</div>
+                    <div class="stat-label">Total Words</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="markedWords">-</div>
+                    <div class="stat-label">Marked Words</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="unmarkedWords">-</div>
+                    <div class="stat-label">Unmarked Words</div>
+                </div>
+            </div>
+
+            <div id="wordDisplayContainer" class="word-display-container hidden">
+                <div class="word-info">
+                    <div class="word-id" id="wordId">Loading...</div>
+                    <div>
+                        <span class="word-type-badge" id="wordType">-</span>
+                    </div>
+                </div>
+
+                <div class="word-display" id="wordDisplay">
+                    <!-- Characters and sandhi markers will be inserted here -->
+                </div>
+
+                <div class="word-transliteration" id="wordTransliteration">
+                    <!-- IITHLP Roman transliteration -->
+                </div>
+
+                <div class="reference-split" id="referenceSplit">
+                    <strong>Reference:</strong> <span id="splitText">-</span>
+                </div>
+
+                <div class="controls">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--text-dark); margin-bottom: 15px;">
+                        <input type="checkbox" id="includeOcrWords" style="width: 18px; height: 18px;">
+                        <span>Include OCR-detected sandhi words (from uploaded documents)</span>
+                    </label>
+
+                    <button class="btn btn-modern btn-secondary-modern" id="clearBtn">
+                        <i class="fas fa-eraser"></i> Clear Marks
+                    </button>
+                    <button class="btn btn-modern btn-success-modern" id="submitBtn">
+                        <i class="fas fa-check"></i> Submit Marking
+                    </button>
+                    <button class="btn btn-modern btn-primary-modern" id="nextBtn">
+                        <i class="fas fa-forward"></i> Next Word
+                    </button>
+                </div>
+            </div>
+
+            <div id="loadingMessage" style="text-align: center; padding: 40px; color: #718096;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary-color);"></i>
+                <p style="margin-top: 15px;">Loading words from SandhiKosh corpus...</p>
+            </div>
+        </div>
+
+        <!-- Data Attribution Card -->
+        <div class="content-card" style="margin-top: 20px;">
+            <div style="text-align: center;">
+                <h5 style="color: var(--primary-color); font-weight: 600; margin-bottom: 15px;">
+                    <i class="fas fa-book"></i> Data Attribution
+                </h5>
+                <p style="color: var(--text-dark); line-height: 1.6; margin-bottom: 15px;">
+                    The Sanskrit sandhi corpus used in this tool is sourced from
+                    <strong><a href="https://github.com/sanskrit-sandhi/SandhiKosh" target="_blank"
+                        style="color: var(--primary-color); text-decoration: none;">SandhiKosh</a></strong>,
+                    the first Sanskrit Sandhi Benchmark for evaluating Sanskrit Sandhi tools.
+                </p>
+
+                <div style="background: var(--bg-light); padding: 15px; border-radius: 10px; border-left: 4px solid var(--primary-color); text-align: left; max-width: 700px; margin: 0 auto;">
+                    <div style="font-size: 0.85rem; color: #4a5568; font-family: 'Georgia', serif;">
+                        <strong>Citation:</strong><br>
+                        Bhardwaj, S., Gantayat, N., Chaturvedi, N., Garg, R., & Agarwal, S. (2018, May). <em>Sandhikosh: A benchmark corpus for evaluating sanskrit sandhi tools</em>.
+                        In Proceedings of the Eleventh International Conference on Language Resources and Evaluation (LREC 2018).
+                    </div>
+                </div>
+
+                <div style="margin-top: 15px; font-size: 0.85rem; color: #718096;">
+                    <strong>Corpus Datasets:</strong> Bhagavad Gita (1,430), Aṣṭādhyāyī (2,700), UoH (9,368), Rule-based (151)
+                    <br><strong>Total Entries:</strong> 13,649 Sanskrit words
+                </div>
+
+                <div style="margin-top: 15px;">
+                    <a href="https://github.com/sanskrit-sandhi/SandhiKosh" target="_blank"
+                        class="btn btn-modern btn-secondary-modern btn-sm">
+                        <i class="fab fa-github"></i> View on GitHub
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="text-align: center; padding: 20px; margin-top: 20px;">
+            <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.85rem;">
+                &copy; 2025 Drishti OCR. Built for Sanskrit Digital Humanities.
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentWord = null;
+        let sandhiPoints = [];
+
+        const wordDisplay = document.getElementById('wordDisplay');
+        const wordDisplayContainer = document.getElementById('wordDisplayContainer');
+        const loadingMessage = document.getElementById('loadingMessage');
+        const clearBtn = document.getElementById('clearBtn');
+        const submitBtn = document.getElementById('submitBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const wordId = document.getElementById('wordId');
+        const wordType = document.getElementById('wordType');
+        const splitText = document.getElementById('splitText');
+        const wordTransliteration = document.getElementById('wordTransliteration');
+        const totalWordsEl = document.getElementById('totalWords');
+        const markedWordsEl = document.getElementById('markedWords');
+        const unmarkedWordsEl = document.getElementById('unmarkedWords');
+
+        // Initialize
+        async function init() {
+            await loadStats();
+            await loadRandomWord();
+        }
+
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/sandhi/stats');
+                const data = await response.json();
+
+                totalWordsEl.textContent = data.total_words.toLocaleString();
+                markedWordsEl.textContent = data.marked_words.toLocaleString();
+                unmarkedWordsEl.textContent = data.unmarked_words.toLocaleString();
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        async function loadRandomWord() {
+            try {
+                loadingMessage.classList.remove('hidden');
+                wordDisplayContainer.classList.add('hidden');
+
+                // Check if OCR words should be included
+                const includeOcr = document.getElementById('includeOcrWords').checked;
+                const url = `/api/sandhi/words/random?count=1&include_ocr=${includeOcr}`;
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.words && data.words.length > 0) {
+                    currentWord = data.words[0];
+                    sandhiPoints = [];
+                    displayWord();
+                    loadingMessage.classList.add('hidden');
+                    wordDisplayContainer.classList.remove('hidden');
+                } else {
+                    alert('No words available in the corpus');
+                }
+            } catch (error) {
+                console.error('Error loading word:', error);
+                alert('Error loading word from corpus');
+            }
+        }
+
+        function displayWord() {
+            if (!currentWord) return;
+
+            // Update word info
+            wordId.textContent = `Entry ID: ${currentWord.id}`;
+            wordType.textContent = currentWord.type || 'Unknown';
+
+            // Show OCR-specific info if source is OCR
+            if (currentWord.source === 'ocr') {
+                const ocrInfo = ` | OCR Confidence: ${currentWord.ocr_confidence.toFixed(1)}% | Sandhi Confidence: ${(currentWord.sandhi_confidence * 100).toFixed(0)}%`;
+                wordType.textContent += ocrInfo;
+                wordType.style.background = '#fef3c7';
+                wordType.style.color = '#78350f';
+
+                // Show detected sandhi patterns
+                if (currentWord.sandhi_indicators && currentWord.sandhi_indicators.length > 0) {
+                    splitText.innerHTML = `<em>Auto-detected patterns:</em> ${currentWord.sandhi_indicators.slice(0, 2).join(', ')}`;
+                } else {
+                    splitText.textContent = 'OCR word (no reference split)';
+                }
+            } else {
+                splitText.textContent = currentWord.split || '-';
+                wordType.style.background = '';
+                wordType.style.color = '';
+            }
+
+            wordTransliteration.textContent = `Full transliteration: ${currentWord.transliteration || ''}`;
+
+            // Clear and rebuild word display
+            wordDisplay.innerHTML = '';
+
+            // Use graphemes (aksharas) instead of individual characters
+            const graphemes = currentWord.graphemes || [currentWord.word];
+            const transliterationSegments = currentWord.transliteration_segments || [];
+
+            // Debug log
+            console.log('Current word:', currentWord.word);
+            console.log('Graphemes:', graphemes);
+            console.log('Transliteration segments:', transliterationSegments);
+
+            // Track character position for sandhi marking
+            let charPosition = 0;
+
+            for (let i = 0; i < graphemes.length; i++) {
+                // Add sandhi marker before each grapheme
+                const marker = document.createElement('div');
+                marker.className = 'sandhi-marker';
+                marker.dataset.position = charPosition;
+                marker.addEventListener('click', toggleSandhiPoint);
+                wordDisplay.appendChild(marker);
+
+                // Create character container with Devanagari and Roman
+                const charContainer = document.createElement('div');
+                charContainer.className = 'character-container';
+
+                // Add Devanagari grapheme (akshara)
+                const char = document.createElement('div');
+                char.className = 'character';
+                char.textContent = graphemes[i];
+                charContainer.appendChild(char);
+
+                // Add Roman transliteration for this grapheme
+                const romanChar = document.createElement('div');
+                romanChar.className = 'character-roman';
+
+                // Get transliteration for this grapheme
+                const transText = transliterationSegments[i];
+                // Show space as • for visibility, empty as ·, otherwise show the transliteration
+                if (graphemes[i] === ' ') {
+                    romanChar.textContent = '•';
+                } else if (!transText || transText.trim() === '') {
+                    romanChar.textContent = '·';
+                } else {
+                    romanChar.textContent = transText;
+                }
+
+                charContainer.appendChild(romanChar);
+
+                wordDisplay.appendChild(charContainer);
+
+                // Increment character position by length of grapheme
+                charPosition += graphemes[i].length;
+            }
+
+            // Add final sandhi marker
+            const finalMarker = document.createElement('div');
+            finalMarker.className = 'sandhi-marker';
+            finalMarker.dataset.position = charPosition;
+            finalMarker.addEventListener('click', toggleSandhiPoint);
+            wordDisplay.appendChild(finalMarker);
+        }
+
+        function toggleSandhiPoint(event) {
+            const position = parseInt(event.target.dataset.position);
+            const markerEl = event.target;
+
+            if (sandhiPoints.includes(position)) {
+                // Remove sandhi point
+                sandhiPoints = sandhiPoints.filter(p => p !== position);
+                markerEl.classList.remove('active');
+            } else {
+                // Add sandhi point
+                sandhiPoints.push(position);
+                markerEl.classList.add('active');
+            }
+
+            sandhiPoints.sort((a, b) => a - b);
+        }
+
+        clearBtn.addEventListener('click', () => {
+            sandhiPoints = [];
+            document.querySelectorAll('.sandhi-marker').forEach(marker => {
+                marker.classList.remove('active');
+            });
+        });
+
+        submitBtn.addEventListener('click', async () => {
+            if (!currentWord) return;
+
+            if (sandhiPoints.length === 0) {
+                alert('Please mark at least one sandhi point before submitting');
+                return;
+            }
+
+            try {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+
+                const response = await fetch('/api/sandhi/marking', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        corpus_entry_id: currentWord.id,
+                        word: currentWord.word,
+                        sandhi_points: sandhiPoints,
+                        reference_split: currentWord.split,
+                        sandhi_type: currentWord.type,
+                        transliteration: currentWord.transliteration || '',
+                        graphemes: currentWord.graphemes || [],
+                        transliteration_segments: currentWord.transliteration_segments || []
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Update stats from response
+                    if (data.stats) {
+                        totalWordsEl.textContent = data.stats.total_words.toLocaleString();
+                        markedWordsEl.textContent = data.stats.marked_words.toLocaleString();
+                        unmarkedWordsEl.textContent = data.stats.unmarked_words.toLocaleString();
+                    }
+                    // Auto-load next word without alert
+                    await loadRandomWord();
+                } else {
+                    alert(`Error: ${data.error || 'Failed to submit marking'}`);
+                }
+            } catch (error) {
+                console.error('Error submitting marking:', error);
+                alert(`Error: ${error.message}`);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-check"></i> Submit Marking';
+            }
+        });
+
+        nextBtn.addEventListener('click', async () => {
+            await loadRandomWord();
+        });
+
+        // Initialize on page load
+        init();
+    </script>
+</body>
+
+</html>

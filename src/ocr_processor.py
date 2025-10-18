@@ -11,14 +11,26 @@ from datetime import datetime
 from src.config import Config
 from src.aws_service import AWSService
 from src.script_utils import detect_script
+from src.sandhi_detector import detect_sandhi
 import logging
 import gc
 
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
-# Set Tesseract path (installed via apt in Docker image)
-pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
+# Set Tesseract path - auto-detect based on environment
+# Production (Docker/ECS): /usr/bin/tesseract
+# Local Mac (Homebrew): /opt/homebrew/bin/tesseract or /usr/local/bin/tesseract
+# Local Linux: /usr/bin/tesseract
+if os.path.exists('/usr/bin/tesseract'):
+    pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
+elif os.path.exists('/opt/homebrew/bin/tesseract'):
+    pytesseract.pytesseract.tesseract_cmd = '/opt/homebrew/bin/tesseract'
+elif os.path.exists('/usr/local/bin/tesseract'):
+    pytesseract.pytesseract.tesseract_cmd = '/usr/local/bin/tesseract'
+else:
+    # Let pytesseract try to find it in PATH
+    pass
 
 
 class OCRProcessor:
@@ -257,6 +269,15 @@ class OCRProcessor:
                 page_data["words"].append(word_data)
                 page_data["full_text"] += text + " "
 
+                # Detect sandhi for Devanagari words
+                detected_script = detect_script(text)
+                sandhi_result = None
+                if detected_script == 'Devanagari':
+                    try:
+                        sandhi_result = detect_sandhi(text)
+                    except Exception as e:
+                        logger.error(f"Error detecting sandhi for word '{text}': {e}")
+
                 # Prepare DynamoDB item with new schema
                 db_item = {
                     "file_id": file_id,
@@ -265,7 +286,7 @@ class OCRProcessor:
                     "original_text": text if not cached_result else cached_result['original_text'],
                     "confidence": conf if not cached_result else cached_result['confidence'],  # Store as number for GSI sorting
                     "language": self.tesseract_lang,
-                    "detected_script": detect_script(text),
+                    "detected_script": detected_script,
                     "bbox": word_data["bbox"],
                     "page": page_num,
                     "word_index": word_index,
@@ -278,6 +299,16 @@ class OCRProcessor:
                     "updated_at": page_data["timestamp"],
                     "image_hash": image_hash,  # Store image hash for caching
                 }
+
+                # Add sandhi detection results if available
+                if sandhi_result:
+                    db_item["sandhi_detected"] = sandhi_result['has_sandhi']
+                    db_item["sandhi_confidence"] = sandhi_result['confidence']
+                    db_item["sandhi_types"] = sandhi_result.get('sandhi_types', [])
+                    db_item["sandhi_indicators"] = sandhi_result.get('indicators', [])
+                    # Also add to word_data for immediate display
+                    word_data["sandhi_detected"] = sandhi_result['has_sandhi']
+                    word_data["sandhi_confidence"] = sandhi_result['confidence']
 
                 # If cached result has corrected text, add it
                 if cached_result and cached_result['is_corrected']:
