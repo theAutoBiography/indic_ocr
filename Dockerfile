@@ -24,7 +24,8 @@ RUN pip install --no-cache-dir Flask==3.0.0 \
     "boto3>=1.34.24" \
     "opencv-python-headless>=4.9.0.80" \
     "numpy>=1.26.3" \
-    python-dotenv==1.0.0
+    python-dotenv==1.0.0 \
+    "iithlp>=0.2.5"
 
 # Download language data (English + All Indian languages)
 RUN mkdir -p /usr/share/tesseract-ocr/4.00/tessdata && \
@@ -51,6 +52,7 @@ ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata
 # Copy application code
 COPY src/ /var/task/src/
 COPY templates/ /var/task/templates/
+COPY data/ /var/task/data/
 
 # Create required directories
 RUN mkdir -p /var/task/uploads /var/task/static
