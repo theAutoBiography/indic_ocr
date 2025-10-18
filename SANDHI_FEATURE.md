@@ -135,7 +135,7 @@ Or create manually with:
 The corpus data is sourced from [SandhiKosh](https://github.com/sanskrit-sandhi/SandhiKosh), the first Sanskrit Sandhi Benchmark created for evaluating Sanskrit Sandhi tools.
 
 **Citation:**
-> Hellwig, O., & Nehrdich, S. (2018). Sanskrit Word Segmentation Using Character-level Recurrent and Convolutional Neural Networks. In Proceedings of the 2018 Conference on Empirical Methods in Natural Language Processing (EMNLP 2018).
+> Bhardwaj, S., Gantayat, N., Chaturvedi, N., Garg, R., & Agarwal, S. (2018, May). Sandhikosh: A benchmark corpus for evaluating sanskrit sandhi tools. In Proceedings of the Eleventh International Conference on Language Resources and Evaluation (LREC 2018).
 
 ## License
 
