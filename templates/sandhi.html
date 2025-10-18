@@ -110,19 +110,13 @@
         .word-display {
             display: flex;
             justify-content: center;
-            align-items: flex-start;
+            align-items: center;
             flex-wrap: wrap;
             gap: 2px;
-            margin: 30px 0;
-            min-height: 120px;
+            margin: 30px 0 10px 0;
+            min-height: 80px;
             font-size: 2.5rem;
             font-family: 'Noto Sans Devanagari', sans-serif;
-        }
-
-        .character-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
         }
 
         .character {
@@ -132,12 +126,16 @@
             transition: all 0.2s ease;
         }
 
-        .character-roman {
-            font-size: 0.9rem;
+        .word-transliteration {
+            text-align: center;
+            font-size: 1.2rem;
             color: #718096;
             font-family: 'Georgia', serif;
-            margin-top: 2px;
             font-style: italic;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 8px;
         }
 
         .sandhi-marker {
@@ -311,7 +309,7 @@
                     <li><strong>Where to click:</strong> Click on the <strong>vertical lines between characters</strong> where the sandhi split occurs</li>
                     <li><strong>Example:</strong> In <span style="font-family: 'Noto Sans Devanagari';">धृतराष्ट्र उवाच</span> (dhṛtarāṣṭra uvāca) → splits to <span style="font-family: 'Noto Sans Devanagari';">धृतराष्ट्रः + उवाच</span>, mark the split after 'र' and before 'उ'</li>
                     <li><strong>Multiple splits:</strong> Some words have multiple sandhi points - mark all of them</li>
-                    <li><strong>Roman text:</strong> IITHLP transliteration is shown below each character to help identify phonemes</li>
+                    <li><strong>Roman text:</strong> IITHLP transliteration is shown below the word to help identify phonemes</li>
                 </ul>
             </div>
 
@@ -336,6 +334,10 @@
 
                 <div class="word-display" id="wordDisplay">
                     <!-- Characters and sandhi markers will be inserted here -->
+                </div>
+
+                <div class="word-transliteration" id="wordTransliteration">
+                    <!-- IITHLP Roman transliteration -->
                 </div>
 
                 <div class="reference-split" id="referenceSplit">
@@ -392,6 +394,7 @@
         const wordId = document.getElementById('wordId');
         const wordType = document.getElementById('wordType');
         const splitText = document.getElementById('splitText');
+        const wordTransliteration = document.getElementById('wordTransliteration');
         const correctionsCountEl = document.getElementById('correctionsCount');
         const totalWordsEl = document.getElementById('totalWords');
 
@@ -442,11 +445,11 @@
             wordId.textContent = `Entry ID: ${currentWord.id}`;
             wordType.textContent = currentWord.type || 'Unknown';
             splitText.textContent = currentWord.split || '-';
+            wordTransliteration.textContent = currentWord.transliteration || '';
 
             // Clear and rebuild word display
             wordDisplay.innerHTML = '';
             const word = currentWord.word;
-            const transliteration = currentWord.transliteration || '';
 
             for (let i = 0; i < word.length; i++) {
                 // Add sandhi marker before each character
@@ -456,23 +459,11 @@
                 marker.addEventListener('click', toggleSandhiPoint);
                 wordDisplay.appendChild(marker);
 
-                // Create character container with Devanagari and Roman
-                const charContainer = document.createElement('div');
-                charContainer.className = 'character-container';
-
-                // Add Devanagari character
+                // Add character
                 const char = document.createElement('div');
                 char.className = 'character';
                 char.textContent = word[i];
-                charContainer.appendChild(char);
-
-                // Add Roman transliteration character
-                const romanChar = document.createElement('div');
-                romanChar.className = 'character-roman';
-                romanChar.textContent = transliteration[i] || '';
-                charContainer.appendChild(romanChar);
-
-                wordDisplay.appendChild(charContainer);
+                wordDisplay.appendChild(char);
             }
 
             // Add final sandhi marker
