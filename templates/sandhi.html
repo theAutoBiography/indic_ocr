@@ -350,8 +350,10 @@
         <div style="text-align: center; padding: 20px; margin-top: 30px;">
             <div style="color: rgba(255, 255, 255, 0.8); font-size: 0.9rem;">
                 Data Source: <a href="https://github.com/sanskrit-sandhi/SandhiKosh" target="_blank"
-                    style="color: rgba(255, 255, 255, 0.9); text-decoration: underline;">SandhiKosh</a> (Bhagavad Gita
-                Corpus)
+                    style="color: rgba(255, 255, 255, 0.9); text-decoration: underline;">SandhiKosh</a>
+                <div style="font-size: 0.8rem; margin-top: 5px;">
+                    (Bhagavad Gita, Aṣṭādhyāyī, UoH, Rule-based - 13,649 entries)
+                </div>
             </div>
             <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.85rem; margin-top: 5px;">
                 &copy; 2025 Drishti OCR.
@@ -508,7 +510,7 @@
                 if (data.success) {
                     correctionsCount++;
                     correctionsCountEl.textContent = correctionsCount;
-                    alert('Correction submitted successfully!');
+                    // Auto-load next word without alert
                     await loadRandomWord();
                 } else {
                     alert(`Error: ${data.error || 'Failed to submit correction'}`);

@@ -86,6 +86,9 @@ class SandhiService:
             correction_id = str(uuid.uuid4())
             timestamp = int(datetime.now().timestamp() * 1000)
 
+            # Extract source from corpus_entry_id (format: source_id)
+            word_source = corpus_entry_id.split('_')[0] if '_' in corpus_entry_id else 'unknown'
+
             item = {
                 'correction_id': correction_id,
                 'timestamp': timestamp,
@@ -94,7 +97,7 @@ class SandhiService:
                 'sandhi_points': sandhi_points,
                 'reference_split': reference_split,
                 'sandhi_type': sandhi_type,
-                'source': 'bhagavad_gita'
+                'source': word_source
             }
 
             if user_session_id:

@@ -33,4 +33,4 @@ class Config:
     TESSERACT_LANG = os.getenv('TESSERACT_LANG', 'san+eng+hin')  # Sanskrit, English, and Hindi
 
     # Sandhi config
-    SANDHI_DATA_PATH = os.path.join(PROJECT_ROOT, 'data', 'sandhikosh_bhagavad_gita.json')
+    SANDHI_DATA_PATH = os.path.join(PROJECT_ROOT, 'data', 'sandhikosh_combined.json')
