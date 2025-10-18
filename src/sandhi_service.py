@@ -12,7 +12,76 @@ try:
 except ImportError:
     iithlp = None
 
+import re
+
 logger = logging.getLogger(__name__)
+
+
+def segment_devanagari(text: str) -> List[str]:
+    """
+    Segment Devanagari text into grapheme clusters (aksharas).
+    Keeps consonants with their vowel marks and conjuncts together.
+
+    Args:
+        text: Devanagari text
+
+    Returns:
+        List of grapheme clusters
+    """
+    # Unicode ranges for Devanagari
+    # Consonants: 0905-0939
+    # Vowel signs (maatras): 093E-094C, 0962-0963
+    # Virama (halant): 094D
+    # Other marks: 0901-0903, 093C, 094D, 0951-0954
+
+    graphemes = []
+    i = 0
+
+    while i < len(text):
+        char = text[i]
+        cluster = char
+
+        # Skip non-Devanagari characters (spaces, punctuation)
+        if ord(char) < 0x0900 or ord(char) > 0x097F:
+            graphemes.append(char)
+            i += 1
+            continue
+
+        # Start building cluster
+        j = i + 1
+
+        # Collect all combining marks, virama, and subsequent consonants (for conjuncts)
+        while j < len(text):
+            next_char = text[j]
+            code = ord(next_char)
+
+            # Vowel signs (maatras): 093E-094C, 0962-0963
+            # Virama: 094D
+            # Other combining marks: 0901-0903, 093C, 0951-0954
+            if ((0x093E <= code <= 0x094C) or  # Vowel signs
+                (0x0962 <= code <= 0x0963) or  # Vocalic L/LL
+                (0x0901 <= code <= 0x0903) or  # Candrabindu, Anusvara, Visarga
+                code == 0x093C or              # Nukta
+                (0x0951 <= code <= 0x0954)):   # Stress marks
+                cluster += next_char
+                j += 1
+            # Virama followed by consonant = conjunct
+            elif code == 0x094D:
+                cluster += next_char
+                j += 1
+                # Check if next is consonant
+                if j < len(text) and 0x0915 <= ord(text[j]) <= 0x0939:
+                    cluster += text[j]
+                    j += 1
+                else:
+                    break
+            else:
+                break
+
+        graphemes.append(cluster)
+        i = j
+
+    return graphemes
 
 
 class SandhiService:
@@ -63,20 +132,41 @@ class SandhiService:
             word_id: The corpus entry ID
 
         Returns:
-            Word data or None if not found
+            Word data with transliteration and grapheme segmentation
         """
         for word in self.corpus_data:
             if word['id'] == word_id:
                 # Add IITHLP transliteration
                 word_copy = word.copy()
+
+                # Segment Devanagari into grapheme clusters
+                graphemes = segment_devanagari(word['word'])
+                word_copy['graphemes'] = graphemes
+
                 if iithlp:
                     try:
-                        word_copy['transliteration'] = iithlp.to_roman(word['word'])
+                        # Transliterate full word
+                        full_transliteration = iithlp.to_roman(word['word'])
+                        word_copy['transliteration'] = full_transliteration
+
+                        # Transliterate each grapheme individually for 1:1 mapping
+                        trans_segments = []
+                        for grapheme in graphemes:
+                            try:
+                                trans = iithlp.to_roman(grapheme).strip()
+                                trans_segments.append(trans)
+                            except:
+                                trans_segments.append('')
+
+                        word_copy['transliteration_segments'] = trans_segments
                     except Exception as e:
                         logger.error(f"Error transliterating word: {e}")
                         word_copy['transliteration'] = ''
+                        word_copy['transliteration_segments'] = [''] * len(graphemes)
                 else:
                     word_copy['transliteration'] = ''
+                    word_copy['transliteration_segments'] = [''] * len(graphemes)
+
                 return word_copy
         return None
 
@@ -217,7 +307,7 @@ class SandhiService:
             count: Number of random words to return
 
         Returns:
-            List of random words with transliteration
+            List of random words with transliteration and grapheme segmentation
         """
         import random
 
@@ -230,14 +320,35 @@ class SandhiService:
         result = []
         for word in selected_words:
             word_copy = word.copy()
+
+            # Segment Devanagari into grapheme clusters
+            graphemes = segment_devanagari(word['word'])
+            word_copy['graphemes'] = graphemes
+
             if iithlp:
                 try:
-                    word_copy['transliteration'] = iithlp.to_roman(word['word'])
+                    # Transliterate full word
+                    full_transliteration = iithlp.to_roman(word['word'])
+                    word_copy['transliteration'] = full_transliteration
+
+                    # Transliterate each grapheme individually for 1:1 mapping
+                    trans_segments = []
+                    for grapheme in graphemes:
+                        try:
+                            trans = iithlp.to_roman(grapheme).strip()
+                            trans_segments.append(trans)
+                        except:
+                            trans_segments.append('')
+
+                    word_copy['transliteration_segments'] = trans_segments
                 except Exception as e:
                     logger.error(f"Error transliterating word: {e}")
                     word_copy['transliteration'] = ''
+                    word_copy['transliteration_segments'] = [''] * len(graphemes)
             else:
                 word_copy['transliteration'] = ''
+                word_copy['transliteration_segments'] = [''] * len(graphemes)
+
             result.append(word_copy)
 
         return result

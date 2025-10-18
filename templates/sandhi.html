@@ -500,14 +500,19 @@
 
             // Clear and rebuild word display
             wordDisplay.innerHTML = '';
-            const word = currentWord.word;
-            const transliteration = currentWord.transliteration || '';
 
-            for (let i = 0; i < word.length; i++) {
-                // Add sandhi marker before each character
+            // Use graphemes (aksharas) instead of individual characters
+            const graphemes = currentWord.graphemes || [currentWord.word];
+            const transliterationSegments = currentWord.transliteration_segments || [];
+
+            // Track character position for sandhi marking
+            let charPosition = 0;
+
+            for (let i = 0; i < graphemes.length; i++) {
+                // Add sandhi marker before each grapheme
                 const marker = document.createElement('div');
                 marker.className = 'sandhi-marker';
-                marker.dataset.position = i;
+                marker.dataset.position = charPosition;
                 marker.addEventListener('click', toggleSandhiPoint);
                 wordDisplay.appendChild(marker);
 
@@ -515,26 +520,28 @@
                 const charContainer = document.createElement('div');
                 charContainer.className = 'character-container';
 
-                // Add Devanagari character
+                // Add Devanagari grapheme (akshara)
                 const char = document.createElement('div');
                 char.className = 'character';
-                char.textContent = word[i];
+                char.textContent = graphemes[i];
                 charContainer.appendChild(char);
 
-                // Add Roman transliteration character (or placeholder)
+                // Add Roman transliteration for this grapheme
                 const romanChar = document.createElement('div');
                 romanChar.className = 'character-roman';
-                // Use the character at the same index from transliteration, or placeholder
-                romanChar.textContent = transliteration[i] || '·';
+                romanChar.textContent = transliterationSegments[i] || '·';
                 charContainer.appendChild(romanChar);
 
                 wordDisplay.appendChild(charContainer);
+
+                // Increment character position by length of grapheme
+                charPosition += graphemes[i].length;
             }
 
             // Add final sandhi marker
             const finalMarker = document.createElement('div');
             finalMarker.className = 'sandhi-marker';
-            finalMarker.dataset.position = word.length;
+            finalMarker.dataset.position = charPosition;
             finalMarker.addEventListener('click', toggleSandhiPoint);
             wordDisplay.appendChild(finalMarker);
         }
