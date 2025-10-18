@@ -154,13 +154,17 @@ class SandhiService:
                         for grapheme in graphemes:
                             try:
                                 trans = iithlp.to_roman(grapheme).strip()
+                                if not trans:
+                                    # If transliteration is empty, log and keep grapheme
+                                    logger.warning(f"Empty transliteration for grapheme: '{grapheme}'")
                                 trans_segments.append(trans)
-                            except:
+                            except Exception as e:
+                                logger.error(f"Error transliterating grapheme '{grapheme}': {e}")
                                 trans_segments.append('')
 
                         word_copy['transliteration_segments'] = trans_segments
                     except Exception as e:
-                        logger.error(f"Error transliterating word: {e}")
+                        logger.error(f"Error transliterating word '{word['word']}': {e}")
                         word_copy['transliteration'] = ''
                         word_copy['transliteration_segments'] = [''] * len(graphemes)
                 else:
@@ -336,13 +340,17 @@ class SandhiService:
                     for grapheme in graphemes:
                         try:
                             trans = iithlp.to_roman(grapheme).strip()
+                            if not trans:
+                                # If transliteration is empty, log and keep grapheme
+                                logger.warning(f"Empty transliteration for grapheme: '{grapheme}'")
                             trans_segments.append(trans)
-                        except:
+                        except Exception as e:
+                            logger.error(f"Error transliterating grapheme '{grapheme}': {e}")
                             trans_segments.append('')
 
                     word_copy['transliteration_segments'] = trans_segments
                 except Exception as e:
-                    logger.error(f"Error transliterating word: {e}")
+                    logger.error(f"Error transliterating word '{word['word']}': {e}")
                     word_copy['transliteration'] = ''
                     word_copy['transliteration_segments'] = [''] * len(graphemes)
             else:
