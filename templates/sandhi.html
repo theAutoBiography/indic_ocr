@@ -506,19 +506,32 @@
             wordType.textContent = currentWord.type || 'Unknown';
 
             // Show OCR-specific info if source is OCR
-            if (currentWord.source === 'ocr') {
-                const ocrInfo = ` | OCR Confidence: ${currentWord.ocr_confidence.toFixed(1)}% | Sandhi Confidence: ${(currentWord.sandhi_confidence * 100).toFixed(0)}%`;
-                wordType.textContent += ocrInfo;
-                wordType.style.background = '#fef3c7';
-                wordType.style.color = '#78350f';
+            if (currentWord.source === 'ocr' || currentWord.source === 'ocr-user') {
+                const ocrInfo = ` | OCR Confidence: ${currentWord.ocr_confidence.toFixed(1)}%`;
 
-                // Show detected sandhi patterns
-                if (currentWord.sandhi_indicators && currentWord.sandhi_indicators.length > 0) {
-                    splitText.innerHTML = `<em>Auto-detected patterns:</em> ${currentWord.sandhi_indicators.slice(0, 2).join(', ')}`;
+                if (currentWord.source === 'ocr-user') {
+                    // User-confirmed sandhi word
+                    wordType.textContent += ocrInfo + ' | ✓ User confirmed sandhi';
+                    wordType.style.background = '#d1fae5';
+                    wordType.style.color = '#065f46';
+                    splitText.innerHTML = `<strong>User-confirmed sandhi word</strong>` +
+                        (currentWord.was_corrected ? ' (text was corrected)' : '');
                 } else {
-                    splitText.textContent = 'OCR word (no reference split)';
+                    // Auto-detected sandhi word
+                    const sandhiConf = currentWord.sandhi_confidence ? ` | Sandhi: ${(currentWord.sandhi_confidence * 100).toFixed(0)}%` : '';
+                    wordType.textContent += ocrInfo + sandhiConf;
+                    wordType.style.background = '#fef3c7';
+                    wordType.style.color = '#78350f';
+
+                    // Show detected sandhi patterns
+                    if (currentWord.sandhi_indicators && currentWord.sandhi_indicators.length > 0) {
+                        splitText.innerHTML = `<em>Auto-detected patterns:</em> ${currentWord.sandhi_indicators.slice(0, 2).join(', ')}`;
+                    } else {
+                        splitText.textContent = 'OCR word (no reference split)';
+                    }
                 }
             } else {
+                // Corpus word
                 splitText.textContent = currentWord.split || '-';
                 wordType.style.background = '';
                 wordType.style.color = '';

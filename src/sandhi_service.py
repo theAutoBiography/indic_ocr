@@ -316,35 +316,31 @@ class SandhiService:
             'unmarked_words': unmarked_words
         }
 
-    def get_ocr_sandhi_words(self, limit: int = 50, min_confidence: float = 0.5) -> List[Dict]:
+    def get_user_confirmed_sandhi_words(self, limit: int = 50) -> List[Dict]:
         """
-        Get words from OCR results that were detected as having sandhi
+        Get words from OCR results where users confirmed sandhi (has_sandhi = true)
 
         Args:
             limit: Maximum number of words to return
-            min_confidence: Minimum sandhi confidence threshold (0.0 to 1.0)
 
         Returns:
-            List of words with sandhi detection data, transliteration, and graphemes
+            List of user-confirmed sandhi words with transliteration and graphemes
         """
         try:
-            # Query OCR results table for words with sandhi_detected = true
             table = self.aws_service.dynamodb.Table(Config.DYNAMODB_TABLE)
 
-            # Scan for sandhi-detected words (could be optimized with GSI if needed)
+            # Scan for user-confirmed sandhi words
             response = table.scan(
-                FilterExpression='sandhi_detected = :true AND sandhi_confidence >= :min_conf',
+                FilterExpression='has_sandhi = :true',
                 ExpressionAttributeValues={
-                    ':true': True,
-                    ':min_conf': Decimal(str(min_confidence))
+                    ':true': True
                 },
                 Limit=limit
             )
 
             ocr_words = []
             for item in response.get('Items', []):
-                # Create word entry similar to corpus format
-                word_text = item.get('original_text', '')
+                word_text = item.get('corrected_text') or item.get('original_text', '')
 
                 # Skip non-Devanagari or empty words
                 if not word_text or not any('\u0900' <= c <= '\u097F' for c in word_text):
@@ -354,20 +350,24 @@ class SandhiService:
                 graphemes = segment_devanagari(word_text)
 
                 word_entry = {
-                    'id': f"ocr_{item.get('word_id', '')}",
+                    'id': f"ocr_user_{item.get('word_id', '')}",
                     'word': word_text,
                     'split': '',  # OCR words don't have reference splits
-                    'type': 'ocr-detected',
-                    'source': 'ocr',
+                    'type': 'user-confirmed',
+                    'source': 'ocr-user',
                     'file_id': item.get('file_id'),
                     'page': item.get('page'),
                     'word_index': item.get('word_index'),
                     'ocr_confidence': float(item.get('confidence', 0)),
-                    'sandhi_confidence': float(item.get('sandhi_confidence', 0)),
-                    'sandhi_types': item.get('sandhi_types', []),
-                    'sandhi_indicators': item.get('sandhi_indicators', []),
+                    'was_corrected': item.get('is_corrected') == 'true',
                     'graphemes': graphemes
                 }
+
+                # Add sandhi detection data if available
+                if item.get('sandhi_detected') is not None:
+                    word_entry['sandhi_confidence'] = float(item.get('sandhi_confidence', 0))
+                    word_entry['sandhi_types'] = item.get('sandhi_types', [])
+                    word_entry['sandhi_indicators'] = item.get('sandhi_indicators', [])
 
                 # Add transliteration
                 if iithlp:
@@ -396,6 +396,113 @@ class SandhiService:
                 ocr_words.append(word_entry)
 
             return ocr_words
+
+        except Exception as e:
+            logger.error(f"Error fetching user-confirmed sandhi words: {e}")
+            return []
+
+    def get_ocr_sandhi_words(self, limit: int = 50, min_confidence: float = 0.5, include_user_confirmed: bool = True) -> List[Dict]:
+        """
+        Get words from OCR results that have sandhi (auto-detected or user-confirmed)
+
+        Args:
+            limit: Maximum number of words to return
+            min_confidence: Minimum sandhi confidence threshold for auto-detected (0.0 to 1.0)
+            include_user_confirmed: Include words where users confirmed sandhi
+
+        Returns:
+            List of words with sandhi detection data, transliteration, and graphemes
+        """
+        try:
+            table = self.aws_service.dynamodb.Table(Config.DYNAMODB_TABLE)
+
+            all_ocr_words = []
+
+            # Get user-confirmed sandhi words first (highest priority)
+            if include_user_confirmed:
+                user_words = self.get_user_confirmed_sandhi_words(limit=limit)
+                all_ocr_words.extend(user_words)
+
+            # Then get auto-detected words if we haven't reached the limit
+            remaining_limit = limit - len(all_ocr_words)
+            if remaining_limit > 0:
+                # Scan for auto-detected sandhi words
+                response = table.scan(
+                    FilterExpression='sandhi_detected = :true AND sandhi_confidence >= :min_conf',
+                    ExpressionAttributeValues={
+                        ':true': True,
+                        ':min_conf': Decimal(str(min_confidence))
+                    },
+                    Limit=remaining_limit * 2  # Get more to filter duplicates
+                )
+
+                # Filter out duplicates (words already in user-confirmed list)
+                user_word_ids = {w['id'] for w in all_ocr_words}
+
+                for item in response.get('Items', []):
+                    word_id = f"ocr_{item.get('word_id', '')}"
+
+                    # Skip if already in user-confirmed list
+                    if word_id in user_word_ids:
+                        continue
+
+                    # Create word entry similar to corpus format
+                    word_text = item.get('original_text', '')
+
+                    # Skip non-Devanagari or empty words
+                    if not word_text or not any('\u0900' <= c <= '\u097F' for c in word_text):
+                        continue
+
+                    # Segment and transliterate
+                    graphemes = segment_devanagari(word_text)
+
+                    word_entry = {
+                        'id': word_id,
+                        'word': word_text,
+                        'split': '',  # OCR words don't have reference splits
+                        'type': 'ocr-detected',
+                        'source': 'ocr',
+                        'file_id': item.get('file_id'),
+                        'page': item.get('page'),
+                        'word_index': item.get('word_index'),
+                        'ocr_confidence': float(item.get('confidence', 0)),
+                        'sandhi_confidence': float(item.get('sandhi_confidence', 0)),
+                        'sandhi_types': item.get('sandhi_types', []),
+                        'sandhi_indicators': item.get('sandhi_indicators', []),
+                        'graphemes': graphemes
+                    }
+
+                    # Add transliteration
+                    if iithlp:
+                        try:
+                            full_transliteration = iithlp.to_roman(word_text)
+                            word_entry['transliteration'] = full_transliteration
+
+                            trans_segments = []
+                            for grapheme in graphemes:
+                                try:
+                                    trans = iithlp.to_roman(grapheme).strip()
+                                    trans_segments.append(trans)
+                                except Exception as e:
+                                    logger.error(f"Error transliterating grapheme '{grapheme}': {e}")
+                                    trans_segments.append('')
+
+                            word_entry['transliteration_segments'] = trans_segments
+                        except Exception as e:
+                            logger.error(f"Error transliterating OCR word '{word_text}': {e}")
+                            word_entry['transliteration'] = ''
+                            word_entry['transliteration_segments'] = [''] * len(graphemes)
+                    else:
+                        word_entry['transliteration'] = ''
+                        word_entry['transliteration_segments'] = [''] * len(graphemes)
+
+                    all_ocr_words.append(word_entry)
+
+                    # Stop if we've reached the limit
+                    if len(all_ocr_words) >= limit:
+                        break
+
+            return all_ocr_words[:limit]  # Ensure we don't exceed limit
 
         except Exception as e:
             logger.error(f"Error fetching OCR sandhi words: {e}")
