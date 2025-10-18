@@ -7,6 +7,11 @@ from src.config import Config
 from src.aws_service import AWSService
 import logging
 
+try:
+    import iithlp
+except ImportError:
+    iithlp = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -62,7 +67,17 @@ class SandhiService:
         """
         for word in self.corpus_data:
             if word['id'] == word_id:
-                return word
+                # Add IITHLP transliteration
+                word_copy = word.copy()
+                if iithlp:
+                    try:
+                        word_copy['transliteration'] = iithlp.to_roman(word['word'])
+                    except Exception as e:
+                        logger.error(f"Error transliterating word: {e}")
+                        word_copy['transliteration'] = ''
+                else:
+                    word_copy['transliteration'] = ''
+                return word_copy
         return None
 
     def save_correction(self, corpus_entry_id: str, word: str, sandhi_points: List[int],
@@ -151,11 +166,27 @@ class SandhiService:
             count: Number of random words to return
 
         Returns:
-            List of random words
+            List of random words with transliteration
         """
         import random
 
         if count >= len(self.corpus_data):
-            return self.corpus_data
+            selected_words = self.corpus_data
+        else:
+            selected_words = random.sample(self.corpus_data, count)
 
-        return random.sample(self.corpus_data, count)
+        # Add transliteration to each word
+        result = []
+        for word in selected_words:
+            word_copy = word.copy()
+            if iithlp:
+                try:
+                    word_copy['transliteration'] = iithlp.to_roman(word['word'])
+                except Exception as e:
+                    logger.error(f"Error transliterating word: {e}")
+                    word_copy['transliteration'] = ''
+            else:
+                word_copy['transliteration'] = ''
+            result.append(word_copy)
+
+        return result

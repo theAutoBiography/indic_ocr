@@ -110,13 +110,19 @@
         .word-display {
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
             flex-wrap: wrap;
             gap: 2px;
             margin: 30px 0;
-            min-height: 80px;
+            min-height: 120px;
             font-size: 2.5rem;
             font-family: 'Noto Sans Devanagari', sans-serif;
+        }
+
+        .character-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         .character {
@@ -124,6 +130,14 @@
             cursor: default;
             user-select: none;
             transition: all 0.2s ease;
+        }
+
+        .character-roman {
+            font-size: 0.9rem;
+            color: #718096;
+            font-family: 'Georgia', serif;
+            margin-top: 2px;
+            font-style: italic;
         }
 
         .sandhi-marker {
@@ -291,12 +305,13 @@
 
         <div class="content-card">
             <div class="instructions">
-                <div class="instructions-title"><i class="fas fa-info-circle"></i> Instructions</div>
+                <div class="instructions-title"><i class="fas fa-info-circle"></i> How to Mark Sandhi Points</div>
                 <ul>
-                    <li>Click on the vertical lines <strong>between characters</strong> to mark sandhi points</li>
-                    <li>Multiple sandhi points can be marked in a single word</li>
-                    <li>Click "Submit Correction" to save your annotations</li>
-                    <li>Click "Next Word" to move to another random word from the corpus</li>
+                    <li><strong>What is a sandhi point?</strong> - A sandhi point is where two words join together with phonetic changes</li>
+                    <li><strong>Where to click:</strong> Click on the <strong>vertical lines between characters</strong> where the sandhi split occurs</li>
+                    <li><strong>Example:</strong> In <span style="font-family: 'Noto Sans Devanagari';">धृतराष्ट्र उवाच</span> (dhṛtarāṣṭra uvāca) → splits to <span style="font-family: 'Noto Sans Devanagari';">धृतराष्ट्रः + उवाच</span>, mark the split after 'र' and before 'उ'</li>
+                    <li><strong>Multiple splits:</strong> Some words have multiple sandhi points - mark all of them</li>
+                    <li><strong>Roman text:</strong> IITHLP transliteration is shown below each character to help identify phonemes</li>
                 </ul>
             </div>
 
@@ -431,6 +446,7 @@
             // Clear and rebuild word display
             wordDisplay.innerHTML = '';
             const word = currentWord.word;
+            const transliteration = currentWord.transliteration || '';
 
             for (let i = 0; i < word.length; i++) {
                 // Add sandhi marker before each character
@@ -440,11 +456,23 @@
                 marker.addEventListener('click', toggleSandhiPoint);
                 wordDisplay.appendChild(marker);
 
-                // Add character
+                // Create character container with Devanagari and Roman
+                const charContainer = document.createElement('div');
+                charContainer.className = 'character-container';
+
+                // Add Devanagari character
                 const char = document.createElement('div');
                 char.className = 'character';
                 char.textContent = word[i];
-                wordDisplay.appendChild(char);
+                charContainer.appendChild(char);
+
+                // Add Roman transliteration character
+                const romanChar = document.createElement('div');
+                romanChar.className = 'character-roman';
+                romanChar.textContent = transliteration[i] || '';
+                charContainer.appendChild(romanChar);
+
+                wordDisplay.appendChild(charContainer);
             }
 
             // Add final sandhi marker
